@@ -8,7 +8,7 @@ reduced, monolithized and namespaced version of [mustache-like template **eval**
 - `>`, template partials, inheritance.
 - `&`, `{{{trippleStashes}}}`, charset option, entities escaping.
 - `=`, section delimiters modifier.
-- `!`, comments (will work anyway).
+- `!`, comments.
 - strict callables option (both variants are oke).
 - logger object => function (callable).
 - helpers object => array.
@@ -37,24 +37,36 @@ reduced, monolithized and namespaced version of [mustache-like template **eval**
 - features: ...
 
 
-# usage
-```php
-$text = <<<EOD
-
-{:#test:}Hello {:name:}, this is a {:test:}!{:/test:}
-{:#test:}Hello {:name:}, this is a {:#test:}test{:/test:}!{:/test:}
-
-EOD;
-echo $mustache->render($text, [
-  'name' => 'tester',
-  'test' => (function($s) {return $s;}),
-], '{: :}');
-```
-
-
 # todos
 - validate and skip falsy tags (`<!-- {{{ -->` vim markers for example).
 - avoid template rendering when substitution is more appropriate.
 - heredoc guards
-- more tests
+- more tests/usecases
+
+
+# usecases
+## multipass
+```php
+[
+  'en' => [
+    'title' => '{:point_up:} multi-language templates with emojis',
+    'text'  => '
+{{question_text}} {:question_symbol:}
+{{#answers}}
+  {{#chosen}}
+    {:white_small_square:} {{answer_text}}
+  {{/chosen}}
+  {{^chosen}}
+    {:black_small_square:} {{answer_text}}
+  {{/chosen}}
+{{/answers}}
+    ',
+  ],
+  # other languages...
+]
+```
+## motd
+
+
+
 
