@@ -31,7 +31,6 @@ TEMPLATE;
     isset($o['delims'])  && ($this->delims  = $o['delims']);
     isset($o['helpers']) && ($this->helpers = $o['helpers']);
     isset($o['logger'])  && ($this->logger  = $o['logger']);
-    isset($o['debug'])   && ($this->debug   = $o['debug']);
     self::$TE['FUNC'] = str_replace("\r", "", trim(self::$TE['FUNC']));
   }
   private function log($text, $level = 0) {
