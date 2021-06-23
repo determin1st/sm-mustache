@@ -1,5 +1,23 @@
 <?php
 # prep {{{
+require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
+$TE = new \SM\MustacheEngine([
+  'logger' => Closure::fromCallable('logit'),
+]);
+$a = $TE->tokenize('
+
+third line
+{{   
+        #section}}
+  true
+{{/section}}
+the last one here..
+
+');
+var_export($a);
+#####
+exit;
+#####
 $args = array_slice($argv, 1);
 if (($i = count($args)) === 0)
 {
@@ -17,7 +35,6 @@ if (!file_exists($file) ||
   exit;
 }
 logit("testfile: $file \n");
-require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
 # }}}
 ###
 $TE = new \SM\MustacheEngine([

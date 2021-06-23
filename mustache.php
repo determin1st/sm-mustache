@@ -3,28 +3,52 @@ namespace SM;
 class MustacheEngine {
   # BASE {{{
   const SPEC   = '1.1.2';
-  const PREFIX = '__mustache_';
+  const DELIMS = '{}[]()<>:%=~-_?*@!|';# valid delimiter characters
+  const TAG_SZ = 40;# maximal {{tag}} size (without delimiters)
   public
     $templates = [],
     $funcs     = [],
-    $delims    = '{{ }}',
+    $delims    = ['{{','}}'],
     $helpers   = null,
     $logger    = null;
+  ###
+  ###
+  const T_SECTION     = '#';
+  const T_INVERTED    = '^';
+  const T_ELSE        = '|';
+  const T_SECTION_END = '/';
+  const T_VAR         = '_v';
+  const T_TEXT        = '_t';
+  private static $TAGS = [
+    '#' => '#',# if
+    '|' => '|',# else
+    '!' => '!',# if not
+    '^' => '!',# if not (alias, for compatibility)
+    '/' => '/',# end if
+  ];
+  private static $tagTypes = [
+    self::T_SECTION     => true,
+    self::T_INVERTED    => true,
+    self::T_SECTION_END => true,
+    self::T_VAR         => true,
+  ];
+  ###
+  ###
   private static $TE = [
     # evaluated chunks of code
     'FUNC' =>
     '
 
-return (function($x) { #%s,depth=%s
+function($x) { #%s,depth=%s
   return <<<TEMPLATE
 %s
 TEMPLATE;
-});
+}
 
     ',
-    'SECTION'  => '{$x->section(%s,%s)}',
-    'VARIABLE' => '{$x->value(%s)}',
-    'INVERTED_SECTION' => 'if (!self::%s) {%s}',
+    'SECTION' => '{$x->f(%s,%s,1)}',
+    'INVERTED_SECTION' => '{$x->f(%s,%s,0)}',
+    'VARIABLE' => '{$x(%s)}',
   ];
   public function __construct($o = [])
   {
@@ -39,9 +63,20 @@ TEMPLATE;
   # }}}
   public function render($text, $context = [], $delims = null) # {{{
   {
-    if ($text)
+    if ($text)# tempate text specified
     {
-      $delims && ($this->delims = $delims);
+      if ($delims)# custom delimiters specified
+      {
+        # check correctness, extract and set
+        $i = preg_quote(self::DELIMS);
+        if (!is_string($delims) ||
+            !preg_match('/^(['.$i.']{2})\s*(['.$i.']{2})$/', $delims, $i))
+        {
+          $this->log('incorrect delimiters: '.var_export($delims, true));
+        }
+        $this->delims = [$i[1], $i[2]];
+      }
+      # render template function and execute it within given context
       $text = ~($i = $this->renderFunc($text))
         ? $this->funcs[$i](new MustacheContext($this, $context))
         : '';
@@ -51,12 +86,12 @@ TEMPLATE;
   # }}}
   private function renderFunc($text, &$tree = null, $depth = -1) # {{{
   {
-    # check recursion
-    if (!$text) {
+    # check
+    if (!$text) {# recursion
       $text = $k = $this->compose($tree, ++$depth);
     }
     else {# first call
-      $k = $this->delims.$text;
+      $k = implode('', $this->delims).$text;
     }
     # check cache
     if (isset($this->templates[$k])) {
@@ -67,7 +102,9 @@ TEMPLATE;
       # create parse tree
       if (!$tree)
       {
-        $tree = $this->tokenize($text, $this->delims);
+        $tree = $this->tokenize($text);
+        var_export($tree);
+        return -1;
         $this->clearStandaloneSections($tree);
         $tree = $this->parse($tree);
       }
@@ -77,174 +114,115 @@ TEMPLATE;
       $text = sprintf(self::$TE['FUNC'], $i, $depth, $text);
       # evaluate and store
       $this->templates[$k] = $i;
-      $this->funcs[$i] = eval($text);
+      $this->funcs[$i] = eval("return ($text);");
       $this->log($text);
     }
     # complete
     return $i;
   }
   # }}}
-  # TODO: TOKENIZER {{{
-  # token types
-  const T_SECTION     = '#';
-  const T_INVERTED    = '^';
-  const T_SECTION_END = '/';
-  const T_VAR         = '_v';
-  const T_TEXT        = '_t';
-  private static $tagTypes = [
-    self::T_SECTION     => true,
-    self::T_INVERTED    => true,
-    self::T_SECTION_END => true,
-    self::T_VAR         => true,
-  ];
-  # state
-  const IN_TEXT     = 0;
-  const IN_TAG_TYPE = 1;
-  const IN_TAG      = 2;
-  public
-    $state,
-    $tagType,
-    $buffer,
-    $tokens,
-    $seenTag,
-    $line,
-    $otag,
-    $otagChar,
-    $otagLen,
-    $ctag,
-    $ctagChar,
-    $ctagLen;
-  private function tokenize($text, $delims)
+  public function tokenize($text) # TODO {{{
   {
-    ###
-    # Setting mbstring.func_overload makes things *really* slow.
-    # Let's do everyone a favor and scan this string as ASCII instead.
-    # @codeCoverageIgnoreStart
-    $encoding = null;
-    if (function_exists('mb_internal_encoding') &&
-        ini_get('mbstring.func_overload') & 2)
-    {
-      $encoding = mb_internal_encoding();
-      mb_internal_encoding('ASCII');
-    }
-    # @codeCoverageIgnoreEnd
-    ###
     # prepare
-    $this->state    = self::IN_TEXT;
-    $this->tagType  = null;
-    $this->buffer   = '';
-    $this->tokens   = array();
-    $this->seenTag  = false;
-    $this->line     = 0;
-    $this->otag     = '{{';
-    $this->otagChar = '{';
-    $this->otagLen  = 2;
-    $this->ctag     = '}}';
-    $this->ctagChar = '}';
-    $this->ctagLen  = 2;
-    # set delimiters
-    if (!preg_match('/^\s*(\S+)\s+(\S+)\s*$/', $delims, $matches)) {
-      throw new \Exception('incorrect delimiters: '.$delims);
-    }
-    list($_, $otag, $ctag) = $matches;
-    $this->otag     = $otag;
-    $this->otagChar = $otag[0];
-    $this->otagLen  = strlen($otag);
-    $this->ctag     = $ctag;
-    $this->ctagChar = $ctag[0];
-    $this->ctagLen  = strlen($ctag);
-    ###
-    ###
-    $len = strlen($text);
-    for ($i = 0; $i < $len; ++$i)
+    $tokens = [];
+    $tOpen  = $this->delims[0];
+    $tClose = $this->delims[1];
+    $tSize  = strlen($tOpen);
+    # iterate
+    $i = $n = $line = 0;
+    $k = strlen($text);
+    while ($i < $k)
     {
-      switch ($this->state) {
-      case self::IN_TEXT:
-        $char = $text[$i];
-        // Test whether it's time to change tags.
-        if ($char === $this->otagChar && substr($text, $i, $this->otagLen) === $this->otag)
+      # search both newline and tag opening
+      $a = strpos($text, "\n", $i);
+      $b = strpos($text, $tOpen, $i);
+      # check no more tags left
+      if ($b === false)
+      {
+        # to be able to catch standalone tag later,
+        # add next text chunk spearately
+        if ($a !== false)
         {
-          $i--;
-          $this->flushBuffer();
-          $this->state = self::IN_TAG_TYPE;
-        }
-        else
-        {
-          $this->buffer .= $char;
-          if ($char === "\n")
-          {
-            $this->flushBuffer();
-            $this->line++;
-          }
-        }
-        break;
-      case self::IN_TAG_TYPE:
-        $i += $this->otagLen - 1;
-        $char = $text[$i + 1];
-        if (isset(self::$tagTypes[$char]))
-        {
-          $tag = $char;
-          $this->tagType = $tag;
-        }
-        else
-        {
-          $tag = null;
-          $this->tagType = self::T_VAR;
-        }
-        if ($tag !== null) {
-          $i++;
-        }
-        $this->state = self::IN_TAG;
-        $this->seenTag = $i;
-        break;
-      default:
-        $char = $text[$i];
-        // Test whether it's time to change tags.
-        if ($char === $this->ctagChar && substr($text, $i, $this->ctagLen) === $this->ctag)
-        {
-          $token = [
-            'TYPE'  => $this->tagType,
-            'NAME'  => trim($this->buffer),
-            'OTAG'  => $this->otag,
-            'CTAG'  => $this->ctag,
-            'LINE'  => $this->line,
-            'INDEX' => (($this->tagType === self::T_SECTION_END)
-              ? $this->seenTag - $this->otagLen
-              : $i + $this->ctagLen),
+          $tokens[$n++] = [
+            'TYPE' => '',
+            'LINE' => $line++,
+            'TEXT' => substr($text, $i, ($j = $a - $i + 1)),
           ];
-          $this->buffer = '';
-          $i += $this->ctagLen - 1;
-          $this->state = self::IN_TEXT;
-          $this->tokens[] = $token;
+          $i = $a + 1;# move to the next char after newline
         }
-        else {
-          $this->buffer .= $char;
-        }
+        # add last text chunk as a whole
+        $tokens[$n++] = [
+          'TYPE' => '',
+          'LINE' => $line,
+          'TEXT' => substr($text, $i),
+        ];
+        # complete
         break;
       }
-    }
-    $this->flushBuffer();
-    ###
-    # Restore the user's encoding...
-    # @codeCoverageIgnoreStart
-    if ($encoding) {
-        mb_internal_encoding($encoding);
-    }
-    # @codeCoverageIgnoreEnd
-    ###
-    return $this->tokens;
-  }
-  private function flushBuffer()
-  {
-    if (strlen($this->buffer) > 0)
-    {
-      $this->tokens[] = [
-        'TYPE'  => self::T_TEXT,
-        'LINE'  => $this->line,
-        'VALUE' => $this->buffer,
+      # accumulate text tokens
+      while ($a !== false && $a < $b)
+      {
+        $tokens[$n++] = [
+          'TYPE' => '',
+          'LINE' => $line++,
+          'TEXT' => substr($text, $i, ($j = $a - $i + 1)),
+        ];
+        $i = $a + 1;# move to the next char after newline
+        $a = strpos($text, "\n", $i);
+      }
+      # the tag must not be empty, oversized or unknown, so,
+      # find closing delimiter, check for false opening and
+      # validate tag type (first character)
+      $b += $tSize;# shift to the tag name
+      if (($c = strpos($text, $tClose, $b)) === false ||
+          ($j = $c - $b) === 0 || $j > self::TAG_SZ ||
+          !($tag = trim(substr($text, $b, $j), ' ')) ||
+          !isset(self::$TAGS[$tag[0]]))
+      {
+        echo("i=$i,a=$a,b=$b,c=$c,tag=$tag,n=$n\n");
+        echo "FALSE TAG\n";
+        # report as problematic but acceptable
+        $this->log("false tag skipped: '$tag'", 0);
+        # add delimiter token
+        $tokens[$n++] = [
+          'TYPE' => '',
+          'LINE' => $line++,
+          'TEXT' => substr($text, $i, ($j = $a - $i + 1)),
+        ];
+        # skip to the next character after opening delimiter
+        $i = $b;
+        break;
+        continue;
+        # ...
+        # ...
+        # check previous token was a text without newline
+        if ($n && !$tokens[$n - 1]['TYPE'] &&
+            substr($tokens[$n - 1]['TEXT'], -1) !== "\n")
+        {
+          # append
+          $tokens[$n - 1]['TEXT'] .= ($a === false)
+            ? substr($text, $b)# all
+            : substr($text);# chunk
+        }
+        else
+        {
+          # create new
+        }
+        # ...
+        # ...
+        # ...
+        break;
+      }
+      # add tag token
+      $tokens[$n++] = [
+        'TYPE' => self::$TAGS[$tag[0]],
+        'LINE' => $line,
+        'TEXT' => substr($tag, 1),
       ];
-      $this->buffer = '';
+      # continue (from the closing delimiter)
+      $i = $c + $tSize + 1;
     }
+    return $tokens;
   }
   # }}}
   private function clearStandaloneSections(&$tokens) # {{{
@@ -270,14 +248,14 @@ TEMPLATE;
             # check last token is whitespace OR
             # it's the very last node with the first token whitespaced
             if ($tokens[$j]['TYPE'] === self::T_TEXT &&
-                ctype_space($tokens[$j]['VALUE']))
+                ctype_space($tokens[$j]['TEXT']))
             {
-              $tokens[$j]['VALUE'] = '';
+              $tokens[$j]['TEXT'] = '';
             }
             elseif ($a === $b && $tokens[$i]['TYPE'] === self::T_TEXT &&
-                    ctype_space($tokens[$i]['VALUE']))
+                    ctype_space($tokens[$i]['TEXT']))
             {
-              $tokens[$i]['VALUE'] = '';
+              $tokens[$i]['TEXT'] = '';
             }
           }
           else
@@ -285,10 +263,10 @@ TEMPLATE;
             # check first and last are whitespace
             if ($tokens[$i]['TYPE'] === self::T_TEXT &&
                 $tokens[$j]['TYPE'] === self::T_TEXT &&
-                ctype_space($tokens[$i]['VALUE']) &&
-                ctype_space($tokens[$j]['VALUE']))
+                ctype_space($tokens[$i]['TEXT']) &&
+                ctype_space($tokens[$j]['TEXT']))
             {
-              $tokens[$i]['VALUE'] = $tokens[$j]['VALUE'] = '';
+              $tokens[$i]['TEXT'] = $tokens[$j]['TEXT'] = '';
             }
           }
         }
@@ -338,7 +316,6 @@ TEMPLATE;
           return null;
         }
         # section assembled
-        $p['END']   = $t['INDEX'];
         $p['NODES'] = $tree;
         return $p;
       default:
@@ -381,10 +358,8 @@ TEMPLATE;
         $code .= sprintf(self::$TE['VARIABLE'], "'$name'");
         break;
       case self::T_TEXT:
-        $code .= $node['VALUE'];
+        $code .= $node['TEXT'];
         break;
-      default:
-        throw new \Exception('unknown token: '.var_export($node, true));
       }
     }
     return $code;
@@ -405,11 +380,17 @@ class MustacheContext # {{{
       array_push($this->stack, $context);
     }
   }
-  public function section($name, $i)
+  public function __invoke($name)
+  {
+    return is_callable($v = $this->v($name))
+      ? call_user_func($v, '')
+      : $v;
+  }
+  public function f($name, $i)
   {
     # {{{
     # prepare
-    if (!($v = $this->get($name))) {
+    if (!($v = $this->v($name))) {
       return '';
     }
     # invoke helper first
@@ -452,16 +433,7 @@ class MustacheContext # {{{
     return $s;
     # }}}
   }
-  public function value($name)
-  {
-    # {{{
-    $v = $this->get($name);
-    return is_callable($v)
-      ? call_user_func($v, '')
-      : $v;
-    # }}}
-  }
-  private function get($name, &$stack = null)
+  private function v($name, &$stack = null)
   {
     # {{{
     # prepare
@@ -513,7 +485,7 @@ class MustacheContext # {{{
     foreach (explode('.', $name) as $name)
     {
       # recurse
-      if (!($v = $this->get($name, $stack))) {
+      if (!($v = $this->v($name, $stack))) {
         break;
       }
       # dive into the value
