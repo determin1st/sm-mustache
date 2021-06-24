@@ -6,33 +6,34 @@ class MustacheEngine {
   const DELIMS   = '{}[]()<>:%=~-_?*@!|';# valid delimiter chars
   const DELIM_SZ = 4;# max size of a delimeter (minimal is 2)
   const NAME_SZ  = 32;# max {{name}} size (without delimiters/spacing)
-  private static $TAGS = [
-    '#' => '#',# if
-    '^' => '^',# if not
-    '|' => '|',# else
-    '/' => '/',# fi
-    '!' => '!',# comment
-    '.' => '.',# iterator
-    # _ variable
-  ];
-  private static $BLOCKS = '#^|/!';
-  private static $TE = [
-    # evaluated chunks of code
-    'FUNC' =>
-    '
+  private static
+    $BLOCKS = '#^|/!';
+    $TAGS = [
+      '#' => '#',# if
+      '^' => '^',# if not
+      '|' => '|',# else
+      '/' => '/',# fi
+      '!' => '!',# comment
+      '.' => '.',# iterator
+      # _ variable
+    ],
+    $TE = [# evaluated chunks of code
+      'FUNC' => '
 function($x) { #%s,depth=%s
 return <<<TEMPLATE
 %s
 TEMPLATE;
 }
-    ',
-    '#' => '{$x->f(%s,%s,0)}',
-    '^' => '{$x->f(%s,%s,1)}',
-    '_' => '{$x(%s)}',
-  ];
+      ',
+      '#' => '{$x->f(%s,%s,0)}',
+      '^' => '{$x->f(%s,%s,1)}',
+      '_' => '{$x(%s)}',
+    ];
+  ###
   public
+    $funcs     = [];# index=>function
+  private
     $templates = [],# text=>index
-    $funcs     = [],# index=>function
     $delims    = ['{{','}}'],
     $helpers   = null,
     $logger    = null;
@@ -47,7 +48,7 @@ TEMPLATE;
     ($log = $this->logger) && $log($text, $level);
   }
   # }}}
-  public function render($text, $context = [], $delims = null) # {{{
+  function render($text, $context = [], $delims = null) # {{{
   {
     if ($text)# tempate text specified
     {
@@ -111,7 +112,7 @@ TEMPLATE;
     return $i;
   }
   # }}}
-  public function tokenize($delims, $text) # {{{
+  function tokenize($delims, $text) # {{{
   {
     # prepare
     $tokens = [];# [<TYPE>,<TEXT>,<LINE>,<INDENT>]
@@ -273,7 +274,7 @@ TEMPLATE;
     return $tokens;
   }
   # }}}
-  private function parse(&$tokens, $p = null) # {{{
+  function parse(&$tokens, $p = null) # {{{
   {
     # construct syntax tree
     $tree = [];# [<TYPE>,<TEXT>,<LINE>,<INDENT>,<CHILDREN>]
@@ -365,8 +366,8 @@ TEMPLATE;
 }
 class MustacheContext # {{{
 {
-  public $engine, $stack;
-  public function __construct($engine, $context)
+  private $engine, $stack;
+  function __construct($engine, $context)
   {
     $this->engine = $engine;
     $this->stack  = [];
@@ -377,16 +378,16 @@ class MustacheContext # {{{
       array_push($this->stack, $context);
     }
   }
-  public function __toString() {
+  function __toString() {
     return "\nTEMPLATE";# guard
   }
-  public function __invoke($name)
+  function __invoke($name)
   {
     return is_callable($v = $this->v($name))
       ? call_user_func($v, '')# lambda variable
       : $v;# value
   }
-  public function f($i, $name, $negate)
+  function f($i, $name, $negate)
   {
     # {{{
     # get value and handle negate logic

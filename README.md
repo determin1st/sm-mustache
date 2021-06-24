@@ -1,4 +1,4 @@
-![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)
+[![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)](https://youtu.be/lJ_aqxOU6Kg)
 reduced, monolithized and namespaced version of [mustache-like template **eval**uator](https://mustache.github.io/)
 ([origin](https://github.com/bobthecow/mustache.php))
 
@@ -33,18 +33,21 @@ reduced, monolithized and namespaced version of [mustache-like template **eval**
   - speed: ...
 </details>
 <details>
-<summary>todo</summary>
-- speedtest
-- test lambdas
-- `|` else block.
-- block operators `==`, `>`, `<`, `>=`, `<=`.
-- content re-indenting
+  <summary>todo</summary>
+
+  - speedtest
+  - test lambdas
+  - `|` else block.
+  - block operators `==`, `>`, `<`, `>=`, `<=`.
+  - content re-indenting
 </details>
 
 
 # requirements
 - PHP 7+ (tested on 7.4)
 
+<details>
+  <summary>..</summary>
 
 # syntax
 ## delimiters
@@ -103,4 +106,6 @@ inner `|`
 ## motd
 
 
+
+</details>
 
