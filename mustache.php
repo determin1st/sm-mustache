@@ -7,7 +7,7 @@ class MustacheEngine {
   const DELIM_SZ = 4;# max size of a delimeter (minimal is 2)
   const NAME_SZ  = 32;# max {{name}} size (without delimiters/spacing)
   private static
-    $BLOCKS = '#^|/!';
+    $BLOCKS = '#^|/!',
     $TAGS = [
       '#' => '#',# if
       '^' => '^',# if not

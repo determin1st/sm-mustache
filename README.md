@@ -1,10 +1,10 @@
 [![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)](https://youtu.be/lJ_aqxOU6Kg)
-reduced, monolithized and namespaced version of [mustache-like template **eval**uator](https://mustache.github.io/)
+reduced, monolithized and namespaced version of [mustache template **eval**uator](https://mustache.github.io/)
 ([origin](https://github.com/bobthecow/mustache.php))
 
 <details>
   <summary>details</summary>
-
+  ---
   #### reduced
   - `=`, section delimiters modifier.
   - `<`, template parent, inheritance.
@@ -32,16 +32,6 @@ reduced, monolithized and namespaced version of [mustache-like template **eval**
   - size: ~`15`kb vs ~`130`kb
   - speed: ...
 </details>
-<details>
-  <summary>todo</summary>
-
-  - speedtest
-  - test lambdas
-  - `|` else block.
-  - block operators `==`, `>`, `<`, `>=`, `<=`.
-  - content re-indenting
-</details>
-
 
 # requirements
 - PHP 7+ (tested on 7.4)
@@ -104,8 +94,16 @@ inner `|`
 ]
 ```
 ## motd
-
-
-
 </details>
+
+<details>
+  <summary>todo</summary>
+
+  - speedtest
+  - test lambdas
+  - `|` else block.
+  - block operators `==`, `>`, `<`, `>=`, `<=`.
+  - content re-indenting
+</details>
+
 
