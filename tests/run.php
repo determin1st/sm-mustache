@@ -1,27 +1,75 @@
 <?php
-# prep {{{
 require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
-$TE = new \SM\MustacheEngine([
-  'logger' => Closure::fromCallable('logit'),
-]);
-$a = $TE->tokenize('
-
-third line
-{{   
-        #section}}
-  true
-{{/section}}
-the last one here..
-
-');
-var_export($a);
-#####
-exit;
-#####
-$args = array_slice($argv, 1);
-if (($i = count($args)) === 0)
+# tokenizer {{{
+if (0)
 {
-  logit("specify arguments: <file> [<test_no>]\n");
+  $m = new \SM\MustacheEngine([
+    'logger' => Closure::fromCallable('logit'),
+  ]);
+  $a = $m->tokenize(['{{','}}'], '
+
+    {{^block}}{{#puke}}
+      is truthy
+    {{|}}
+      is falsy
+    {{/puke}}{{/block}}
+
+  ');
+  if ($a && 1)
+  {
+    echo "========\n";
+    foreach($a as $b) {
+      $c = $b[0] ?: 'T';
+      echo "$c:{$b[2]}:{$b[3]}=".var_export($b[1], true)."\n";
+    }
+    echo "========\n";
+  }
+  exit;
+}
+# }}}
+# renderer {{{
+if (0)
+{
+  $m = new \SM\MustacheEngine([
+    'logger' => Closure::fromCallable('logit'),
+  ]);
+  $a = '
+
+    {\\$x} \\ {${x}}
+    \\\\$$
+
+    {{^block}}{{#puke}}
+      is truthy\n\n\n\n
+    {{|}}
+TEMPLATE
+;
+TEMPLATE               ;
+      is falsy
+    {{/puke}}{{/block}}
+
+  ';
+  echo "========\n$a";
+  $a = $m->render($a, [
+    'block' => 0,
+    'puke'  => 1,
+  ]);
+  echo "========\n$a";
+  #var_export($a);
+  /***
+  foreach($a as $b) {
+    $c = $b[0] ?: 'T';
+    echo "$c:{$b[2]}:{$b[3]}=".var_export($b[1], true)."\n";
+  }
+  /***/
+  echo "========\n";
+  exit;
+}
+# }}}
+# prep {{{
+$args = array_slice($argv, 1);
+if (($i = count($args)) === 0 || !$args[0])
+{
+  logit("specify arguments: <file> [<test_num>]\n");
   exit;
 }
 $test = ($i > 1) ? intval($args[1]) : -1;
@@ -36,13 +84,12 @@ if (!file_exists($file) ||
 }
 logit("testfile: $file \n");
 # }}}
-###
-$TE = new \SM\MustacheEngine([
+# filetest {{{
+$m = new \SM\MustacheEngine([
   'logger' => ~$test ? Closure::fromCallable('logit') : null,
 ]);
 if (~$test)
 {
-  # ONE
   $test = $json['tests'][$test];
   logit("running test: {$test['name']}\n");
   logit("description: {$test['desc']}\n");
@@ -50,19 +97,18 @@ if (~$test)
   logit('data: '.var_export($test['data'], true)."\n");
   logit("expected: [{$test['expected']}]\n");
   logit("\n");
-  $res = $TE->render($test['template'], $test['data']);
+  $res = $m->render($test['template'], $test['data']);
   logit("\n");
   logit("result: [$res]\n");
 }
 else
 {
-  # ALL
   logit("running all tests:\n\n");
   $i = 0;
   foreach ($json['tests'] as $test)
   {
     logit("#$i: {$test['name']}.. ");
-    if ($TE->render($test['template'], $test['data']) === $test['expected']) {
+    if ($m->render($test['template'], $test['data']) === $test['expected']) {
       logit("ok\n");
     }
     else
@@ -73,7 +119,7 @@ else
     ++$i;
   }
 }
-###
+# }}}
 # util {{{
 function logit($m, $level=-1)
 {
