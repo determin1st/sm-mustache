@@ -6,21 +6,25 @@ if (0) # tokenizer
   $m = new \SM\MustacheEngine([
     'logger' => Closure::fromCallable('logit'),
   ]);
-  $a = $m->tokenize(['{{','}}'], '
+  $a = '
 
-    {{^block}}{{#puke}}
+    {{^block}} {{#puke}}
       is truthy
-    {{|}}
+    {|}
       is falsy
     {{/puke}}{{/block}}
 
-  ');
-  if ($a && 1)
+  ';
+  $b = $m->tokenize(['{{','}}',' '], $a);
+  $b = $m->parse($a, $b);
+  var_export($a);
+  var_export($b);
+  if ($b && 0)
   {
     echo "========\n";
-    foreach($a as $b) {
-      $c = $b[0] ?: 'T';
-      echo "$c:{$b[2]}:{$b[3]}=".var_export($b[1], true)."\n";
+    foreach($b as $c) {
+      $d = $c[0] ?: 'T';
+      echo "$d:{$c[2]}:{$c[3]}=".var_export($c[1], true)."\n";
     }
     echo "========\n";
   }
@@ -100,7 +104,7 @@ foreach ($file as $i)
     foreach ($j['tests'] as &$k)
     {
       $e = $k['data']['lambda'];
-      $f = 'return (function(){'.$e.'});';
+      $f = 'return (function($text){'.$e.'});';
       $k['data']['lambda_e'] = $e;
       $k['data']['lambda'] = Closure::fromCallable(eval($f));
     }
@@ -113,6 +117,7 @@ logit("selected: ".implode('/', array_keys($json))."\n");
 # run {{{
 $m = new \SM\MustacheEngine([
   'logger' => ~$test ? Closure::fromCallable('logit') : null,
+  #'logger' => Closure::fromCallable('logit'),
   'recur'  => true,
 ]);
 if (~$test)
@@ -128,6 +133,12 @@ if (~$test)
   $res = $m->render($test['template'], $test['data']);
   logit("\n");
   logit("result: [".str_bg_color($res, 'magenta')."]\n");
+  if ($res === $test['expected']) {
+    logit(str_fg_color('ok', 'green', 1)."\n");
+  }
+  else {
+    logit(str_fg_color('fail', 'red', 1)."\n");
+  }
 }
 else
 {
@@ -148,7 +159,7 @@ else
       else
       {
         logit(str_fg_color('fail', 'red', 1)."\n");
-        break;
+        break 2;
       }
     }
   }

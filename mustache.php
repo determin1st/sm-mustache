@@ -10,7 +10,7 @@ class MustacheEngine {
     $TAGS = [
       '#' => '#',# if
       '^' => '^',# if not
-      '|' => '|',# else
+      #'|' => '|',# else
       '/' => '/',# fi
       '!' => '!',# comment
       '.' => '.',# iterator
@@ -69,16 +69,21 @@ TEMPLATE;
     }
     elseif ($p1)# delimiters and context
     {
-      # check and extract
-      $i = preg_quote(self::DELIMS);
-      $k = '2,'.self::DELIM_SZ;
-      if (!is_string($p1) ||
-          !preg_match('/^(['.$i.']{'.$k.'})(\s+)(['.$i.']{'.$k.'})$/', $p1, $i))
+      # check non-strict
+      if (!is_array($p1))
       {
-        $this->log('incorrect delimiters: '.var_export($p1, true), 1);
-        return $text;
+        # check correct
+        $i = preg_quote(self::DELIMS);
+        $k = '2,'.self::DELIM_SZ;
+        if (!is_string($p1) ||
+            !preg_match('/^(['.$i.']{'.$k.'})(\s+)(['.$i.']{'.$k.'})$/', $p1, $i))
+        {
+          $this->log('incorrect delimiters: '.var_export($p1, true), 1);
+          return $text;
+        }
+        # extract
+        $p1 = [$i[1], $i[3], $p[2]];
       }
-      $p1 = [$i[1], $i[3], $p[2]];
     }
     else
     {
@@ -90,23 +95,14 @@ TEMPLATE;
       return '';
     }
     # execute it within the given context
-    $k = new MustacheContext($this, $this->O, $p2);
+    $k = new MustacheContext($this, $this->O, $p1, $p2);
     return $this->O['funcs'][$i]($k);
   }
   # }}}
   private function renderFunc($delims, $text, &$tree = null, $depth = -1) # {{{
   {
-    # check
-    if ($tree)
-    {
-      # recursion
-      $k = $text;
-      $text = $this->compose($delims, $tree, ++$depth);
-    }
-    else {# first call
-      $k = implode('', $delims).$text;
-    }
     # check cache
+    $k = implode('', $delims).$text;
     if (isset($this->O['templates'][$k])) {
       $i = $this->O['templates'][$k];
     }
@@ -116,7 +112,7 @@ TEMPLATE;
       if (!$tree)
       {
         $tree = $this->tokenize($delims, $text);
-        if (!$tree = $this->parse($tree)) {
+        if (!$tree = $this->parse($text, $tree)) {
           return -1;
         }
       }
@@ -133,10 +129,10 @@ TEMPLATE;
     return $i;
   }
   # }}}
-  function tokenize($delims, $text) # {{{
+  function tokenize($delims, &$text) # {{{
   {
     # prepare
-    $tokens = [];# [<TYPE>,<TEXT>,<LINE>,<INDENT>]
+    $tokens = [];# [<type>,<name>,<line>,<indent>,<index>]
     $size0  = strlen($delims[0]);
     $size1  = strlen($delims[1]);
     $length = strlen($text);
@@ -179,6 +175,7 @@ TEMPLATE;
       {
         # add last text token
         $a = substr($text, $i, $b - $i);
+        $i = $b;
         $tokens[$j++] = ['', $a, $line, -1];
         # check it's an indentation and determine it's size
         $indent = (trim($a, " \t") ? -1 : strlen($a));
@@ -203,26 +200,32 @@ TEMPLATE;
         {
           ++$line;
         }
-        # add opening delimiter as a text token
+        # add false opening as a text token and restart
         $tokens[$j++] = ['', $delims[0], $line, -1];
-        # continue from the next character..
+        # continue after the false opening
         $i = $b;
         continue;
       }
-      # add token
+      # check token tag
       if (isset(self::$TAGS[$c[0]]))
       {
-        # block
+        # determine type and name
         $b = self::$TAGS[$c[0]];
         $c = ($b === self::$TAGS['!'])
-          ? '' # ignore comment
+          ? '' # comment
           : ltrim(substr($c, 1));# trim leading whitespace
+        # add block
+        $tokens[$j++] = [
+          $b, $c, $line, $indent,
+          ($b === '/' ? $i : $a + $size1) # start/end index reversed by tag
+        ];
       }
-      else {# variable
-        $b = '_';
+      else
+      {
+        # add variable
+        $tokens[$j++] = ['_', $c, $line, $indent];
       }
-      $tokens[$j++] = [$b, $c, $line, $indent];
-      # continue after the closing delimiter
+      # shift to the next char after the closing delimiter
       $i = $a + $size1;
     }
     # tokens collected,
@@ -295,11 +298,10 @@ TEMPLATE;
     return $tokens;
   }
   # }}}
-  function parse(&$tokens, $p = null) # {{{
+  function parse(&$text, &$tokens, $p = null) # {{{
   {
     # construct syntax tree
     $tree = [];# [0:<type>,1:<name>,2:<line>,3:<indent>,4:<text>,5:<children>]
-    $text = '';
     while ($tokens)
     {
       # extract next token
@@ -314,7 +316,7 @@ TEMPLATE;
       case '#':
       case '^':
         # recurse
-        if (!($t = $this->parse($tokens, $t))) {
+        if (!($t = $this->parse($text, $tokens, $t))) {
           return null;# something went wrong
         }
         $tree[] = $t;
@@ -327,7 +329,8 @@ TEMPLATE;
           return null;
         }
         # block assembled
-        $p[4] = $tree;
+        $p[4] = substr($text, $p[4], $t[4] - $p[4]);
+        $p[5] = $tree;
         return $p;
       }
     }
@@ -368,7 +371,7 @@ TEMPLATE;
         {
           $code .= sprintf(
             self::$TE[$t[0]],
-            $this->renderFunc($delims, '', $t[4], $depth),
+            $this->renderFunc($delims, $t[4], $t[5], $depth),
             "'".$t[1]."'"
           );
         }
@@ -388,11 +391,12 @@ TEMPLATE;
 }
 class MustacheContext # {{{
 {
-  private $engine, $O, $stack;
-  function __construct($engine, &$O, &$context)
+  private $engine, $O, $delims, $stack;
+  function __construct($engine, &$O, $delims, &$context)
   {
     $this->engine = $engine;
     $this->O      = $O;
+    $this->delims = $delims;
     $this->stack  = [
       ($O['helpers'] ?: null),
       ($context ?: null),
@@ -411,65 +415,92 @@ class MustacheContext # {{{
     $s = is_string($v);
     $n = (!$s && is_numeric($v));
     $x = ($s && $this->O['recur'] &&
-          strpos($v, $this->O['delims'][0]) !== false &&
-          strpos($v, $this->O['delims'][1]) !== false);
+          strpos($v, $this->delims[0]) !== false &&
+          strpos($v, $this->delims[1]) !== false);
     # complete
     return $x # handle recursive template
-      ? $this->engine->render($v, $this->stack[1])
+      ? $this->engine->render($v, $this->delims, $this->stack[1])
       : (($s || $n) ? $v : '');
   }
   function f($i, $name, $negate)
   {
-    # invoke template lambda {{{
+    # invoke template function {{{
     # get value and handle negate logic
     if (!($v = $this->v($name)))
     {
+      # negated value
       return $negate
         ? $this->O['funcs'][$i]($this)
         : '';
     }
-    elseif ($negate) {
-      return '';
+    elseif ($negate)
+    {
+      # negated block (simplified lambda)
+      return (is_callable($v) && !call_user_func($v, ''))
+        ? $this->O['funcs'][$i]($this)
+        : '';
     }
-    # invoke block lambda
-    if (is_callable($v)) {
-      var_dump($name);
-      var_dump($this->O['templates']);
-      $v = call_user_func($v, '');
+    elseif (is_callable($v))
+    {
+      # standard block lambda
+      # search template key
+      $j = reset($this->O[$k = 'templates']);
+      while ($j !== $i) {
+        $j = next($this->O[$k]);
+      }
+      # extract template text (remove key prefix)
+      $j = strlen(implode('', $this->delims));
+      $k = substr(key($this->O[$k]), $j);
+      # invoke and check the result
+      if (!($v = call_user_func($v, $k))) {
+        return '';
+      }
+      # check block substitution
+      if (is_string($v))
+      {
+        # check template recursion
+        if ($this->O['recur'] &&
+            strpos($v, $this->delims[0]) !== false &&
+            strpos($v, $this->delims[1]) !== false)
+        {
+          $v = $this->engine->render($v, $this->delims, $this->stack[1]);
+        }
+        # replace contents
+        return $v;
+      }
+    }
+    # check non-expandable
+    if (!($k = is_array($v)) && !is_object($v))
+    {
+      # iterate once
+      array_push($this->stack, $v);
+      $k = $this->O['funcs'][$i]($this);
+      array_pop($this->stack);
+      return $k;
     }
     # check iterable
-    if (is_array($v))
+    # array must have all keys numeric (assume all or nothing),
+    # object must be of a special type
+    if (($k && is_int(key($v))) ||
+        (!$k && ($v instanceof Traversable)))
     {
-      # array may have mixed keys,
-      # for simplicity, assume all or nothing
-      $x = is_int(key($v));
-    }
-    elseif (is_object($v))
-    {
-      # object must be special
-      $x = ($v instanceof Traversable);
-    }
-    else {
-      $x = false;
-    }
-    # render
-    if ($x)
-    {
-      $s = '';
-      foreach ($v as $x)
+      # implicit iterator
+      $k = '';
+      foreach ($v as $j)
       {
-        array_push($this->stack, $x);
-        $s .= $this->O['funcs'][$i]($this);
+        array_push($this->stack, $j);
+        $k .= $this->O['funcs'][$i]($this);
         array_pop($this->stack);
       }
     }
     else
     {
+      # context expansion
       array_push($this->stack, $v);
-      $s = $this->O['funcs'][$i]($this);
+      $k = $this->O['funcs'][$i]($this);
       array_pop($this->stack);
     }
-    return $s;
+    return $k;
     # }}}
   }
   private function v($name, &$stack = null)

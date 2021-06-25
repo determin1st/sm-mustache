@@ -71,6 +71,7 @@
       "expected": "<-Earth->"
     },
     {
+      "skip":1,
       "name": "Section - Alternate Delimiters",
       "desc": "Lambdas used for sections should parse with the current delimiters.",
       "data": {
@@ -90,6 +91,7 @@
       "expected": "__FILE__ != __LINE__"
     },
     {
+      "skip":1,
       "name": "Inverted Section",
       "desc": "Lambdas used for inverted sections should be considered truthy.",
       "data": {

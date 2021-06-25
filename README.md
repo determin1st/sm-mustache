@@ -1,4 +1,4 @@
-[![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)](https://youtu.be/BNAS2L1dSs8)
+[![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
 Personal [mustache](https://mustache.github.io/) template **eval**uator.
 
 <details>
