@@ -3,28 +3,27 @@ Personal [mustache](https://mustache.github.io/) template **eval**uator.
 
 <details>
   <summary>details</summary>
-  ---
 
   [The origin](https://github.com/bobthecow/mustache.php)
-  was reduced, monolithized and namespaced.. a total, individual rewrite.
+  was reduced, monolithized and namespaced.. a total, individual rewrite from ~`130`kb to ~`15`kb.
   #### reduced (removed)
-  - `=`, section delimiters modifier.
+  - `=`, template delimiters modifier.
   - `<`, template parent, inheritance.
   - `>`, template partials, inheritance.
-  - `{{{trippleStashes}}}` and charset option.
-  - escaping by default (specify explicitly).
-  - template recursion by default (specify explicitly).
+  - pragmas (not in spec).
+  - escaping with `{{{trippleStash}}}`.
+  - escaping by default (specified explicitly).
+  - template recursion by default (specified explicitly).
+  - exceptions/breaks.
   - strict callables option.
   - logger object => function (callable).
   - helpers object => array.
   - camel/snake case mixture => camel case.
-  - exceptions/breaks (set logger to debug).
   - filesystem template loaders (strings only, [UTF-8](https://en.wikipedia.org/wiki/UTF-8) is assumed).
   - filesystem cache (memory cache only).
-  - pragmas, may make templates smaller but more cryptic (not in the specs anyway).
   - `md5()` hash calculations.
   - `mbstring.func_overload` guard (deprecated in new PHPs).
-  - PHPDoc (i trust myself).
+  - PHPDoc.
   #### monolithized
   - helper classes unified into a single engine class.
   - template classes converted into anonymous render functions (heredoc).
@@ -32,26 +31,29 @@ Personal [mustache](https://mustache.github.io/) template **eval**uator.
   - accumulation of lines instead of characters in tokenizer.
   #### namespaced
   - `SM`
-  #### vs origin
-  - size: ~`15`kb vs ~`130`kb
-  - speed: ...
 </details>
 
 # requirements
 - [PHP](https://www.php.net/) 7.4+
 
-# spec tests
+# spec test
 image here
 
-# speed tests
+# speed test
 image here
 
 
 <details>
   <summary>todo</summary>
 
-# syntax extentions
+# usage
+## construct
+## render
 
+# syntax extentions
+## else block
+## block operators `==`, `>`, `<`, `>=`, `<=`
+## block reindentation
 
 # syntax
 ## delimiters
@@ -66,25 +68,7 @@ the name of variable must be alpha-numeric, like `{{1}}`, `{{name}}`, `{{name1}}
 the exception is a variables chain `{{item.1.has.name}}` (called dot notation in the origin).
 ## block
 ## inverted block
-outer `^`
-```
-{{#section}}
-  truthy
-{{/section}}
-{{^section}}
-  falsy
-{{/section}}
-```
-inner `|`
-```
-{{#section}}
-  truthy
-{{|}}
-  falsy
-{{/section}}
-```
 ## lambdas
-## indent trimming
 
 
 # examples
@@ -108,16 +92,6 @@ inner `|`
 ]
 ```
 ## motd
-</details>
-
-<details>
-  <summary>todo</summary>
-
-  - speedtest
-  - test lambdas
-  - `|` else block.
-  - block operators `==`, `>`, `<`, `>=`, `<=`.
-  - content re-indenting
 </details>
 
 

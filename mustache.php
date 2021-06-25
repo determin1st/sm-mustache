@@ -298,7 +298,8 @@ TEMPLATE;
   function parse(&$tokens, $p = null) # {{{
   {
     # construct syntax tree
-    $tree = [];# [<TYPE>,<TEXT>,<LINE>,<INDENT>,<CHILDREN>]
+    $tree = [];# [0:<type>,1:<name>,2:<line>,3:<indent>,4:<text>,5:<children>]
+    $text = '';
     while ($tokens)
     {
       # extract next token
@@ -365,7 +366,6 @@ TEMPLATE;
         # block
         if ($t[4])
         {
-          var_dump($t);
           $code .= sprintf(
             self::$TE[$t[0]],
             $this->renderFunc($delims, '', $t[4], $depth),
