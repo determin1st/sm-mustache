@@ -7,7 +7,6 @@ class MustacheEngine {
   const DELIM_SZ = 4;# max size of a delimeter (minimal is 2)
   const NAME_SZ  = 32;# max {{name}} size (without delimiters/spacing)
   private static
-    $BLOCKS = '#^|/!',
     $TAGS = [
       '#' => '#',# if
       '^' => '^',# if not
@@ -15,79 +14,101 @@ class MustacheEngine {
       '/' => '/',# fi
       '!' => '!',# comment
       '.' => '.',# iterator
-      # _ variable
+      # _ => variable (no tag)
     ],
+    $BLOCKS = '#^|/!',
     $TE = [# evaluated chunks of code
-      'FUNC' => '
+      'F' => '
+
 function($x) { #%s,depth=%s
 return <<<TEMPLATE
 %s
 TEMPLATE;
 }
+
       ',
       '#' => '{$x->f(%s,%s,0)}',
       '^' => '{$x->f(%s,%s,1)}',
       '_' => '{$x(%s)}',
     ];
   ###
-  public
-    $funcs     = [];# index=>function
-  private
-    $templates = [],# text=>index
-    $delims    = ['{{','}}'],
-    $helpers   = null,
-    $logger    = null;
-  public function __construct($o = [])
+  private $O = [
+    'templates' => [],# template=>index
+    'funcs'     => [],# index=>function
+    'delims'    => ['{{','}}',' '],# opener,closer,indent
+    'helpers'   => null,# context fallback data
+    'logger'    => null,# callable
+    'recur'     => false,# template context recursion
+  ];
+  function __construct($o = [])
   {
-    isset($o['delims'])  && ($this->delims  = $o['delims']);
-    isset($o['helpers']) && ($this->helpers = $o['helpers']);
-    isset($o['logger'])  && ($this->logger  = $o['logger']);
-    self::$TE['FUNC'] = str_replace("\r", "", trim(self::$TE['FUNC']));
+    # assumed correct
+    isset($o[$k = 'delims'])  && ($this->O[$k] = $o[$k]);
+    isset($o[$k = 'helpers']) && ($this->O[$k] = $o[$k]);
+    isset($o[$k = 'logger'])  && ($this->O[$k] = $o[$k]);
+    isset($o[$k = 'recur'])   && ($this->O[$k] = $o[$k]);
+    # prepare once
+    if (!isset(self::$TE['f'])) {
+      self::$TE['f'] = str_replace("\r", "", trim(self::$TE['F']));
+    }
   }
-  private function log($text, $level = 0) {
-    ($log = $this->logger) && $log($text, $level);
+  function log($text, $level = 0) {
+    ($log = $this->O['logger']) && $log($text, $level);
   }
   # }}}
-  function render($text, $context = [], $delims = null) # {{{
+  function render($text, $p1 = null, $p2 = null) # {{{
   {
-    if ($text)# tempate text specified
-    {
-      if ($delims)# custom delimiters specified
-      {
-        # check correctness, extract and set
-        $i = preg_quote(self::DELIMS);
-        $k = '2,'.self::DELIM_SZ;
-        if (!is_string($delims) ||
-            !preg_match('/^(['.$i.']{'.$k.'})(\s*)(['.$i.']{'.$k.'})$/', $delims, $i))
-        {
-          $this->log('incorrect delimiters: '.var_export($delims, true));
-          return $text;
-        }
-        $delims = [$i[1], $i[3], (strlen($i[2]) - 1)];
-      }
-      else {
-        $delims = $this->delims;
-      }
-      # render template function and execute it within given context
-      $text = ~($i = $this->renderFunc($delims, $text))
-        ? $this->funcs[$i](new MustacheContext($this, $context))
-        : '';
+    # check parameters
+    if (!$text || !is_string($text)) {
+      return $text;
     }
-    return $text;
+    if ($p2 === null)# context only
+    {
+      $p2 = $p1;
+      $p1 = $this->O['delims'];
+    }
+    elseif ($p1)# delimiters and context
+    {
+      # check and extract
+      $i = preg_quote(self::DELIMS);
+      $k = '2,'.self::DELIM_SZ;
+      if (!is_string($p1) ||
+          !preg_match('/^(['.$i.']{'.$k.'})(\s+)(['.$i.']{'.$k.'})$/', $p1, $i))
+      {
+        $this->log('incorrect delimiters: '.var_export($p1, true), 1);
+        return $text;
+      }
+      $p1 = [$i[1], $i[3], $p[2]];
+    }
+    else
+    {
+      $this->log('incorrect api usage, check call spec', 1);
+      return '';
+    }
+    # create template function
+    if (($i = $this->renderFunc($p1, $text)) === -1) {
+      return '';
+    }
+    # execute it within the given context
+    $k = new MustacheContext($this, $this->O, $p2);
+    return $this->O['funcs'][$i]($k);
   }
   # }}}
   private function renderFunc($delims, $text, &$tree = null, $depth = -1) # {{{
   {
     # check
-    if (!$text) {# recursion
-      $text = $k = $this->compose($delims, $tree, ++$depth);
+    if ($tree)
+    {
+      # recursion
+      $k = $text;
+      $text = $this->compose($delims, $tree, ++$depth);
     }
     else {# first call
       $k = implode('', $delims).$text;
     }
     # check cache
-    if (isset($this->templates[$k])) {
-      $i = $this->templates[$k];
+    if (isset($this->O['templates'][$k])) {
+      $i = $this->O['templates'][$k];
     }
     else
     {
@@ -101,11 +122,11 @@ TEMPLATE;
       }
       # create renderer function code
       $text = $this->compose($delims, $tree, ++$depth);
-      $i    = count($this->funcs);
-      $text = sprintf(self::$TE['FUNC'], $i, $depth, $text);
+      $i    = count($this->O['funcs']);
+      $text = sprintf(self::$TE['f'], $i, $depth, $text);
       # evaluate and store
-      $this->templates[$k] = $i;
-      $this->funcs[$i] = eval("return ($text);");
+      $this->O['templates'][$k] = $i;
+      $this->O['funcs'][$i] = eval("return ($text);");
       $this->log($text);
     }
     # complete
@@ -344,6 +365,7 @@ TEMPLATE;
         # block
         if ($t[4])
         {
+          var_dump($t);
           $code .= sprintf(
             self::$TE[$t[0]],
             $this->renderFunc($delims, '', $t[4], $depth),
@@ -366,35 +388,44 @@ TEMPLATE;
 }
 class MustacheContext # {{{
 {
-  private $engine, $stack;
-  function __construct($engine, $context)
+  private $engine, $O, $stack;
+  function __construct($engine, &$O, &$context)
   {
     $this->engine = $engine;
-    $this->stack  = [];
-    if ($engine->helpers) {
-      array_push($this->stack, $engine->helpers);
-    }
-    if ($context) {
-      array_push($this->stack, $context);
-    }
+    $this->O      = $O;
+    $this->stack  = [
+      ($O['helpers'] ?: null),
+      ($context ?: null),
+    ];
   }
   function __toString() {
-    return "\nTEMPLATE";# guard
+    return "\nTEMPLATE";# terminator guard
   }
   function __invoke($name)
   {
-    return is_callable($v = $this->v($name))
-      ? call_user_func($v, '')# lambda variable
-      : $v;# value
+    # get value and invoke lambda
+    if (is_callable($v = $this->v($name))) {
+      $v = call_user_func($v, '');
+    }
+    # determine value type flags
+    $s = is_string($v);
+    $n = (!$s && is_numeric($v));
+    $x = ($s && $this->O['recur'] &&
+          strpos($v, $this->O['delims'][0]) !== false &&
+          strpos($v, $this->O['delims'][1]) !== false);
+    # complete
+    return $x # handle recursive template
+      ? $this->engine->render($v, $this->stack[1])
+      : (($s || $n) ? $v : '');
   }
   function f($i, $name, $negate)
   {
-    # {{{
+    # invoke template lambda {{{
     # get value and handle negate logic
     if (!($v = $this->v($name)))
     {
       return $negate
-        ? $this->engine->funcs[$i]($this)
+        ? $this->O['funcs'][$i]($this)
         : '';
     }
     elseif ($negate) {
@@ -402,6 +433,8 @@ class MustacheContext # {{{
     }
     # invoke block lambda
     if (is_callable($v)) {
+      var_dump($name);
+      var_dump($this->O['templates']);
       $v = call_user_func($v, '');
     }
     # check iterable
@@ -426,14 +459,14 @@ class MustacheContext # {{{
       foreach ($v as $x)
       {
         array_push($this->stack, $x);
-        $s .= $this->engine->funcs[$i]($this);
+        $s .= $this->O['funcs'][$i]($this);
         array_pop($this->stack);
       }
     }
     else
     {
       array_push($this->stack, $v);
-      $s = $this->engine->funcs[$i]($this);
+      $s = $this->O['funcs'][$i]($this);
       array_pop($this->stack);
     }
     return $s;
@@ -441,7 +474,7 @@ class MustacheContext # {{{
   }
   private function v($name, &$stack = null)
   {
-    # {{{
+    # get context value {{{
     # prepare
     if (!$stack) {
       $stack = &$this->stack;

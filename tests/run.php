@@ -1,7 +1,7 @@
 <?php
 require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
-# tokenizer {{{
-if (0)
+# {{{
+if (0) # tokenizer
 {
   $m = new \SM\MustacheEngine([
     'logger' => Closure::fromCallable('logit'),
@@ -26,9 +26,7 @@ if (0)
   }
   exit;
 }
-# }}}
-# renderer {{{
-if (0)
+if (0) # renderer
 {
   $m = new \SM\MustacheEngine([
     'logger' => Closure::fromCallable('logit'),
@@ -66,57 +64,93 @@ TEMPLATE               ;
 }
 # }}}
 # prep {{{
+# check arguments
 $args = array_slice($argv, 1);
-if (($i = count($args)) === 0 || !$args[0])
+if (!($i = count($args)) || !$args[0])
 {
-  logit("specify arguments: <file> [<test_num>]\n");
-  exit;
-}
-$test = ($i > 1) ? intval($args[1]) : -1;
-$file = __DIR__.DIRECTORY_SEPARATOR.$args[0];
-if (!file_exists($file) ||
-    !($json = json_decode(file_get_contents($file), true)) ||
-    !isset($json['overview']) ||
-    !isset($json['tests']))
-{
-  logit("incorrect testfile: $file", 1);
-  exit;
-}
-logit("testfile: $file \n");
-# }}}
-# filetest {{{
-$m = new \SM\MustacheEngine([
-  'logger' => ~$test ? Closure::fromCallable('logit') : null,
-]);
-if (~$test)
-{
-  $test = $json['tests'][$test];
-  logit("running test: {$test['name']}\n");
-  logit("description: {$test['desc']}\n");
-  logit("template: {$test['template']}\n");
-  logit('data: '.var_export($test['data'], true)."\n");
-  logit("expected: [{$test['expected']}]\n");
-  logit("\n");
-  $res = $m->render($test['template'], $test['data']);
-  logit("\n");
-  logit("result: [$res]\n");
+  # all
+  if (!($file = glob(__DIR__.DIRECTORY_SEPARATOR.'*.json')))
+  {
+    logit("glob() failed\n");
+    exit;
+  }
+  $test = -1;
 }
 else
 {
-  logit("running all tests:\n\n");
-  $i = 0;
-  foreach ($json['tests'] as $test)
+  # single
+  $file = [__DIR__.DIRECTORY_SEPARATOR.$args[0]];
+  $test = ($i === 1) ? -1 : intval($args[1]);
+}
+$json = [];
+foreach ($file as $i)
+{
+  if (!file_exists($i) ||
+      !($j = json_decode(file_get_contents($i), true)) ||
+      !isset($j['overview']) ||
+      !isset($j['tests']))
   {
-    logit("#$i: {$test['name']}.. ");
-    if ($m->render($test['template'], $test['data']) === $test['expected']) {
-      logit("ok\n");
-    }
-    else
+    logit("incorrect testfile: $i");
+    exit;
+  }
+  $i = explode('.', basename($i))[0];
+  if ($i === 'lambdas')
+  {
+    # create functions
+    foreach ($j['tests'] as &$k)
     {
-      logit("failed\n");
-      break;
+      $e = $k['data']['lambda'];
+      $f = 'return (function(){'.$e.'});';
+      $k['data']['lambda_e'] = $e;
+      $k['data']['lambda'] = Closure::fromCallable(eval($f));
     }
-    ++$i;
+    unset($k);
+  }
+  $json[$i] = $j;
+}
+logit("selected: ".implode('/', array_keys($json))."\n");
+# }}}
+# run {{{
+$m = new \SM\MustacheEngine([
+  'logger' => ~$test ? Closure::fromCallable('logit') : null,
+  'recur'  => true,
+]);
+if (~$test)
+{
+  $json = array_pop($json);
+  $test = $json['tests'][$test];
+  logit("running test: {$test['name']}\n");
+  logit("description: {$test['desc']}\n");
+  logit("template: [".str_bg_color($test['template'], 'cyan')."]\n");
+  logit('data: '.var_export($test['data'], true)."\n");
+  logit("expected: [".str_bg_color($test['expected'], 'magenta')."]\n");
+  logit("\n");
+  $res = $m->render($test['template'], $test['data']);
+  logit("\n");
+  logit("result: [".str_bg_color($res, 'magenta')."]\n");
+}
+else
+{
+  foreach ($json as $k => $j)
+  {
+    logit("testing: ".str_fg_color($k, 'cyan', 1)."\n");
+    $i = 0;
+    foreach ($j['tests'] as $test)
+    {
+      logit("#".str_fg_color($i++, 'cyan', 1).": {$test['name']}.. ");
+      if (isset($test['skip']) && $test['skip']) {
+        logit(str_fg_color('skip', 'blue', 0)."\n");
+        continue;
+      }
+      if ($m->render($test['template'], $test['data']) === $test['expected']) {
+        logit(str_fg_color('ok', 'green', 1)."\n");
+      }
+      else
+      {
+        logit(str_fg_color('fail', 'red', 1)."\n");
+        break;
+      }
+    }
   }
 }
 # }}}
@@ -125,7 +159,42 @@ function logit($m, $level=-1)
 {
   static $e = null;
   !$e && ($e = fopen('php://stderr', 'w'));
-  fwrite($e, (~$level ? ($level.'> '.$m."\n") : $m));
+  if (~$level) {
+    $m = "sm: ".str_bg_color($m, ($level ? 'red' : 'cyan'))."\n";
+  }
+  fwrite($e, $m);
+}
+function str_bg_color($m, $name, $strong=0)
+{
+  static $color = [
+    'black'   => [40,100],
+    'red'     => [41,101],
+    'green'   => [42,102],
+    'yellow'  => [43,103],
+    'blue'    => [44,104],
+    'magenta' => [45,105],
+    'cyan'    => [46,106],
+    'white'   => [47,107],
+  ];
+  $c = $color[$name][$strong];
+  return (strpos($m, "\n") === false)
+    ? "[{$c}m{$m}[0m"
+    : "[{$c}m".str_replace("\n", "[0m\n[{$c}m", $m).'[0m';
+}
+function str_fg_color($m, $name, $strong=0)
+{
+  static $color = [
+    'black'   => [30,90],
+    'red'     => [31,91],
+    'green'   => [32,92],
+    'yellow'  => [33,93],
+    'blue'    => [34,94],
+    'magenta' => [35,95],
+    'cyan'    => [36,96],
+    'white'   => [37,97],
+  ];
+  $c = $color[$name][$strong];
+  return "[{$c}m{$m}[0m";
 }
 # }}}
 ?>

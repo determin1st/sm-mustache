@@ -21,6 +21,7 @@
       "expected": "Hello, world!"
     },
     {
+      "skip":1,
       "name": "Interpolation - Alternate Delimiters",
       "desc": "A lambda's return value should parse with the default delimiters.",
       "data": {
@@ -36,10 +37,11 @@
       "data": {
         "lambda": "global $calls; return ++$calls;"
       },
-      "template": "{{lambda}} == {{{lambda}}} == {{lambda}}",
+      "template": "{{lambda}} == {{lambda}} == {{lambda}}",
       "expected": "1 == 2 == 3"
     },
     {
+      "skip":1,
       "name": "Escaping",
       "desc": "Lambda results should be appropriately escaped.",
       "data": {
@@ -82,7 +84,7 @@
       "name": "Section - Multiple Calls",
       "desc": "Lambdas used for sections should not be cached.",
       "data": {
-        "lambda": "php": "return \"__\" . $text . \"__\";"
+        "lambda": "return \"__\" . $text . \"__\";"
       },
       "template": "{{#lambda}}FILE{{/lambda}} != {{#lambda}}LINE{{/lambda}}",
       "expected": "__FILE__ != __LINE__"

@@ -1,26 +1,30 @@
-[![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)](https://youtu.be/lJ_aqxOU6Kg)
-reduced, monolithized and namespaced version of [mustache template **eval**uator](https://mustache.github.io/)
-([origin](https://github.com/bobthecow/mustache.php))
+[![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)](https://youtu.be/BNAS2L1dSs8)
+Personal [mustache](https://mustache.github.io/) template **eval**uator.
 
 <details>
   <summary>details</summary>
   ---
-  #### reduced
+
+  [The origin](https://github.com/bobthecow/mustache.php)
+  was reduced, monolithized and namespaced.. a total, individual rewrite.
+  #### reduced (removed)
   - `=`, section delimiters modifier.
   - `<`, template parent, inheritance.
   - `>`, template partials, inheritance.
-  - `&`, `{{{trippleStashes}}}`, charset option, entities escaping.
-  - strict callables option (both will do).
+  - `{{{trippleStashes}}}` and charset option.
+  - escaping by default (specify explicitly).
+  - template recursion by default (specify explicitly).
+  - strict callables option.
   - logger object => function (callable).
   - helpers object => array.
   - camel/snake case mixture => camel case.
-  - exceptions (set logger for debug).
-  - filesystem template loaders (strings only).
+  - exceptions/breaks (set logger to debug).
+  - filesystem template loaders (strings only, [UTF-8](https://en.wikipedia.org/wiki/UTF-8) is assumed).
   - filesystem cache (memory cache only).
   - pragmas, may make templates smaller but more cryptic (not in the specs anyway).
   - `md5()` hash calculations.
-  - `mbstring.func_overload` guard (deprecated in new phps).
-  - PHPDoc.
+  - `mbstring.func_overload` guard (deprecated in new PHPs).
+  - PHPDoc (i trust myself).
   #### monolithized
   - helper classes unified into a single engine class.
   - template classes converted into anonymous render functions (heredoc).
@@ -34,10 +38,20 @@ reduced, monolithized and namespaced version of [mustache template **eval**uator
 </details>
 
 # requirements
-- PHP 7+ (tested on 7.4)
+- [PHP](https://www.php.net/) 7.4+
+
+# spec tests
+image here
+
+# speed tests
+image here
+
 
 <details>
-  <summary>..</summary>
+  <summary>todo</summary>
+
+# syntax extentions
+
 
 # syntax
 ## delimiters
