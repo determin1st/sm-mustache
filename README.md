@@ -1,6 +1,5 @@
 [![logo](https://raw.githack.com/determin1st/sm-mustache/master/tests/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
-Personal [mustache](https://mustache.github.io/) templates **eval**uator
----
+personal [mustache](https://mustache.github.io/) templates **eval**uator
 <details>
   <summary>details</summary>
 
@@ -16,7 +15,7 @@ was reduced, monolithized and namespaced.. a total, individual rewrite from ~`13
 - template recursion by default (specified explicitly).
 - exceptions/breaks.
 - strict callables option.
-- logger object => function (callable).
+- logger object => function.
 - helpers object => array.
 - camel/snake case mixture => camel case.
 - filesystem template loaders (strings only, [UTF-8](https://en.wikipedia.org/wiki/UTF-8) is assumed).
