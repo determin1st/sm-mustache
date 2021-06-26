@@ -1,5 +1,5 @@
-[![logo](https://raw.githack.com/determin1st/sm-mustache/master/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
-Personal [mustache](https://mustache.github.io/) template **eval**uator.
+[![logo](https://raw.githack.com/determin1st/sm-mustache/master/tests/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
+Personal [mustache](https://mustache.github.io/) templates **eval**uator
 
 <details>
   <summary>details</summary>
@@ -33,23 +33,35 @@ Personal [mustache](https://mustache.github.io/) template **eval**uator.
   - `SM`
 </details>
 
-# requirements
+## requirements
 - [PHP](https://www.php.net/) 7.4+
 
-# tests
-### [spec](https://github.com/mustache/spec)
+## tests
 <details>
-<summary>open</summary>
+<summary>performance</summary>
+
+images here
+</details>
+<details>
+<summary>specification <https://github.com/mustache/spec></summary>
 
 [![comments](https://raw.githack.com/determin1st/sm-mustache/master/tests/comments.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/comments.json)
+fails below are `{{{triple_stash}}}`es, which are not supported.
 [![interpolation](https://raw.githack.com/determin1st/sm-mustache/master/tests/interpolation.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/interpolation.json)
 [![inverted](https://raw.githack.com/determin1st/sm-mustache/master/tests/inverted.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/inverted.json)
+lambdas fail because delimiter alternation in template is not supported.
+the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomment-868940293).
 [![lambdas](https://raw.githack.com/determin1st/sm-mustache/master/tests/lambdas.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/lambdas.json)
 [![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/sections.json)
 </details>
 
-### speed
-image here
+
+
+
+
+
+
+
 
 
 <details>

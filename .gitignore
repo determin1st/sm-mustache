@@ -1,4 +1,5 @@
 /tests/spec
+/tests/mustache*/
 *.bmp
 *.vim
 *.swp
