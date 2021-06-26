@@ -119,9 +119,11 @@ $m = new \SM\MustacheEngine([
   'logger' => ~$test ? Closure::fromCallable('logit') : null,
   #'logger' => Closure::fromCallable('logit'),
   'recur'  => true,
+  'escape' => true,
 ]);
 if (~$test)
 {
+  # single
   $json = array_pop($json);
   $test = $json['tests'][$test];
   logit("running test: {$test['name']}\n");
@@ -142,14 +144,16 @@ if (~$test)
 }
 else
 {
+  # multiple
+  $noSkip = (count($json) > 1);
   foreach ($json as $k => $j)
   {
-    logit("testing: ".str_fg_color($k, 'cyan', 1)."\n");
+    logit("> testing: ".str_fg_color($k, 'cyan', 1)."\n");
     $i = 0;
     foreach ($j['tests'] as $test)
     {
-      logit("#".str_fg_color($i++, 'cyan', 1).": {$test['name']}.. ");
-      if (isset($test['skip']) && $test['skip']) {
+      logit(" #".str_fg_color($i++, 'cyan', 1).": {$test['name']}.. ");
+      if (!$noSkip && isset($test['skip']) && $test['skip']) {
         logit(str_fg_color('skip', 'blue', 0)."\n");
         continue;
       }
@@ -159,7 +163,7 @@ else
       else
       {
         logit(str_fg_color('fail', 'red', 1)."\n");
-        break 2;
+        if (!$noSkip) {break 2;}
       }
     }
   }

@@ -41,13 +41,12 @@
       "expected": "1 == 2 == 3"
     },
     {
-      "skip":1,
       "name": "Escaping",
       "desc": "Lambda results should be appropriately escaped.",
       "data": {
         "lambda": "return \">\";"
       },
-      "template": "<{{lambda}}{{{lambda}}}",
+      "template": "<{{lambda}}{{&lambda}}",
       "expected": "<&gt;>"
     },
     {

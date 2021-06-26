@@ -36,8 +36,12 @@ Personal [mustache](https://mustache.github.io/) template **eval**uator.
 # requirements
 - [PHP](https://www.php.net/) 7.4+
 
-# spec test
-image here
+# [spec](https://github.com/mustache/spec) test
+[![comments](https://raw.githack.com/determin1st/sm-mustache/master/tests/comments.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/comments.json)
+[![interpolation](https://raw.githack.com/determin1st/sm-mustache/master/tests/interpolation.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/interpolation.json)
+[![inverted](https://raw.githack.com/determin1st/sm-mustache/master/tests/inverted.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/inverted.json)
+[![lambdas](https://raw.githack.com/determin1st/sm-mustache/master/tests/lambdas.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/lambdas.json)
+[![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/sections.json)
 
 # speed test
 image here

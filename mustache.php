@@ -14,11 +14,12 @@ class MustacheEngine {
       '/' => '/',# fi
       '!' => '!',# comment
       '.' => '.',# iterator
+      '&' => '_',# variable (tagged)
       # _ => variable (no tag)
     ],
     $BLOCKS = '#^|/!',
     $TE = [# evaluated chunks of code
-      'F' => '
+      'f' => '
 
 function($x) { #%s,depth=%s
 return <<<TEMPLATE
@@ -39,6 +40,7 @@ TEMPLATE;
     'helpers'   => null,# context fallback data
     'logger'    => null,# callable
     'recur'     => false,# template context recursion
+    'escape'    => null,# escape function or truthy for HTML
   ];
   function __construct($o = [])
   {
@@ -47,9 +49,12 @@ TEMPLATE;
     isset($o[$k = 'helpers']) && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'logger'])  && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'recur'])   && ($this->O[$k] = $o[$k]);
+    isset($o[$k = 'escape'])  && ($this->O[$k] = $o[$k]);
     # prepare once
-    if (!isset(self::$TE['f'])) {
-      self::$TE['f'] = str_replace("\r", "", trim(self::$TE['F']));
+    if (!isset(self::$TE['i']))
+    {
+      self::$TE['i'] = '';
+      self::$TE['f'] = str_replace("\r", "", trim(self::$TE['f']));
     }
   }
   function log($text, $level = 0) {
@@ -206,24 +211,33 @@ TEMPLATE;
         $i = $b;
         continue;
       }
-      # check token tag
-      if (isset(self::$TAGS[$c[0]]))
-      {
-        # determine type and name
-        $b = self::$TAGS[$c[0]];
-        $c = ($b === self::$TAGS['!'])
-          ? '' # comment
-          : ltrim(substr($c, 1));# trim leading whitespace
-        # add block
-        $tokens[$j++] = [
-          $b, $c, $line, $indent,
-          ($b === '/' ? $i : $a + $size1) # start/end index reversed by tag
-        ];
-      }
-      else
-      {
-        # add variable
+      # determine token tag
+      $b = isset(self::$TAGS[$c[0]]) ?
+        self::$TAGS[$c[0]] : '';
+      # add token
+      switch ($b) {
+      case '_':
+        # tagged variable
+        $c = $c[0].ltrim(substr($c, 1));
+        # fallthrough..
+      case '':
+        # variable
         $tokens[$j++] = ['_', $c, $line, $indent];
+        break;
+      case '!':
+        # comment
+        $tokens[$j++] = [$b, '', $line, $indent];
+        break;
+      case '/':
+        # block end
+        $c = ltrim(substr($c, 1));
+        $tokens[$j++] = [$b, $c, $line, $indent, $i];
+        break;
+      default:
+        # block start
+        $c = ltrim(substr($c, 1));
+        $tokens[$j++] = [$b, $c, $line, $indent, $a + $size1];
+        break;
       }
       # shift to the next char after the closing delimiter
       $i = $a + $size1;
@@ -407,20 +421,34 @@ class MustacheContext # {{{
   }
   function __invoke($name)
   {
+    # get tag and strip it from the name
+    ($tag = ($name[0] === '&')) && ($name = substr($name, 1));
     # get value and invoke lambda
     if (is_callable($v = $this->v($name))) {
       $v = call_user_func($v, '');
     }
-    # determine value type flags
-    $s = is_string($v);
-    $n = (!$s && is_numeric($v));
-    $x = ($s && $this->O['recur'] &&
+    # check type
+    if (is_string($v))
+    {
+      # check template recursion
+      if ($this->O['recur'] &&
           strpos($v, $this->delims[0]) !== false &&
-          strpos($v, $this->delims[1]) !== false);
-    # complete
-    return $x # handle recursive template
-      ? $this->engine->render($v, $this->delims, $this->stack[1])
-      : (($s || $n) ? $v : '');
+          strpos($v, $this->delims[1]) !== false)
+      {
+        # recurse
+        $v = $this->engine->render($v, $this->delims, $this->stack[1]);
+      }
+      elseif (($f = $this->O['escape']) && !$tag)
+      {
+        # escape characters
+        $v = is_callable($f) ? $f($v) : htmlspecialchars($v);
+      }
+      return $v;
+    }
+    elseif (is_numeric($v)) {
+      return "$v";
+    }
+    return '';
   }
   function f($i, $name, $negate)
   {
