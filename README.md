@@ -43,8 +43,9 @@ Personal [mustache](https://mustache.github.io/) templates **eval**uator
 images here
 </details>
 <details>
-<summary>specification <https://github.com/mustache/spec></summary>
+<summary>specification</summary>
 
+<https://github.com/mustache/spec>
 [![comments](https://raw.githack.com/determin1st/sm-mustache/master/tests/comments.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/comments.json)
 fails below are `{{{triple_stash}}}`es, which are not supported.
 [![interpolation](https://raw.githack.com/determin1st/sm-mustache/master/tests/interpolation.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/interpolation.json)
