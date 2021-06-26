@@ -1,36 +1,36 @@
 [![logo](https://raw.githack.com/determin1st/sm-mustache/master/tests/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
 Personal [mustache](https://mustache.github.io/) templates **eval**uator
-
+---
 <details>
   <summary>details</summary>
 
-  [The origin](https://github.com/bobthecow/mustache.php)
-  was reduced, monolithized and namespaced.. a total, individual rewrite from ~`130`kb to ~`15`kb.
-  #### reduced (removed)
-  - `=`, template delimiters modifier.
-  - `<`, template parent, inheritance.
-  - `>`, template partials, inheritance.
-  - pragmas (not in spec).
-  - escaping with `{{{trippleStash}}}`.
-  - escaping by default (specified explicitly).
-  - template recursion by default (specified explicitly).
-  - exceptions/breaks.
-  - strict callables option.
-  - logger object => function (callable).
-  - helpers object => array.
-  - camel/snake case mixture => camel case.
-  - filesystem template loaders (strings only, [UTF-8](https://en.wikipedia.org/wiki/UTF-8) is assumed).
-  - filesystem cache (memory cache only).
-  - `md5()` hash calculations.
-  - `mbstring.func_overload` guard (deprecated in new PHPs).
-  - PHPDoc.
-  #### monolithized
-  - helper classes unified into a single engine class.
-  - template classes converted into anonymous render functions (heredoc).
-  - rendering short-circuited (recursion instead of repetition).
-  - accumulation of lines instead of characters in tokenizer.
-  #### namespaced
-  - `SM`
+[The origin](https://github.com/bobthecow/mustache.php)
+was reduced, monolithized and namespaced.. a total, individual rewrite from ~`130`kb to ~`15`kb.
+#### reduced (removed)
+- `=`, template delimiters modifier.
+- `<`, template parent, inheritance.
+- `>`, template partials, inheritance.
+- pragmas (not in spec).
+- escaping with `{{{trippleStash}}}`.
+- escaping by default (specified explicitly).
+- template recursion by default (specified explicitly).
+- exceptions/breaks.
+- strict callables option.
+- logger object => function (callable).
+- helpers object => array.
+- camel/snake case mixture => camel case.
+- filesystem template loaders (strings only, [UTF-8](https://en.wikipedia.org/wiki/UTF-8) is assumed).
+- filesystem cache (memory cache only).
+- `md5()` hash calculations.
+- `mbstring.func_overload` guard (deprecated in new PHPs).
+- PHPDoc.
+#### monolithized
+- helper classes unified into a single engine class.
+- template classes converted into anonymous render functions (heredoc).
+- rendering short-circuited (recursion instead of repetition).
+- accumulation of lines instead of characters in tokenizer.
+#### namespaced
+- `SM`
 </details>
 
 ## requirements
