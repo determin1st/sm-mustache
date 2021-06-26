@@ -37,7 +37,7 @@ Personal [mustache](https://mustache.github.io/) template **eval**uator.
 - [PHP](https://www.php.net/) 7.4+
 
 # tests
-## [spec](https://github.com/mustache/spec)
+### [spec](https://github.com/mustache/spec)
 <details>
 <summary>open</summary>
 
@@ -47,8 +47,7 @@ Personal [mustache](https://mustache.github.io/) template **eval**uator.
 [![lambdas](https://raw.githack.com/determin1st/sm-mustache/master/tests/lambdas.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/lambdas.json)
 [![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/sections.json)
 </details>
-
-## speed
+### speed
 image here
 
 
@@ -56,8 +55,8 @@ image here
   <summary>todo</summary>
 
 # usage
-## construct
-## render
+### construct
+### render
 
 # syntax extentions
 ## else block
