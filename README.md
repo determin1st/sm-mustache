@@ -39,6 +39,7 @@ Personal [mustache](https://mustache.github.io/) template **eval**uator.
 # [spec](https://github.com/mustache/spec) test
 <details>
 <summary>comments</summary>
+
 [![comments](https://raw.githack.com/determin1st/sm-mustache/master/tests/comments.jpg)](https://github.com/determin1st/sm-mustache/blob/master/tests/comments.json)
 </details>
 <details>
