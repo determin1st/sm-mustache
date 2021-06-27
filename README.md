@@ -40,9 +40,9 @@ was reduced, monolithized and namespaced.. a total, individual rewrite from ~`13
 <summary>performance</summary>
 
 test loops over mustache spec files (except lambdas), fails are skipped and counted.
-[mustache.js](https://github.com/janl/mustache.js) fails in one test, [issue](https://github.com/janl/mustache.js/issues/65)
+[mustache.js](https://github.com/janl/mustache.js) fails in one test: [issue](https://github.com/janl/mustache.js/issues/65)
 [![vs](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed.jpg)](https://github.com/determin1st/sm-mustache#tests)
-NODEv10.14.2, PHPv7.4.5
+PHPv7.4.5, NODEv10.14.2
 ---
 </details>
 <details>
@@ -59,8 +59,6 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomm
 [![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache#tests)
 ---
 </details>
-
-
 
 
 ---
