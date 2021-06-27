@@ -50,7 +50,7 @@ NODEv10.14.2, PHPv7.4.5
 
 <https://github.com/mustache/spec>
 [![comments](https://raw.githack.com/determin1st/sm-mustache/master/tests/comments.jpg)](https://github.com/determin1st/sm-mustache#tests)
-fails below: `{{{triple_stash}}}`es are not supported.
+fails below: `{{{triple_stashes}}}` are not supported.
 [![interpolation](https://raw.githack.com/determin1st/sm-mustache/master/tests/interpolation.jpg)](https://github.com/determin1st/sm-mustache#tests)
 [![inverted](https://raw.githack.com/determin1st/sm-mustache/master/tests/inverted.jpg)](https://github.com/determin1st/sm-mustache#tests)
 fails below: delimiter alternation is not supported.
