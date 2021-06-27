@@ -35,7 +35,7 @@ was reduced, monolithized and namespaced.. a total, individual rewrite from ~`13
 ## requirements
 - [PHP](https://www.php.net/) 7.4+
 
-## tests
+## tests (2021-06)
 <details>
 <summary>performance</summary>
 
