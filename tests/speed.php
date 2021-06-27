@@ -1,90 +1,19 @@
 <?php
-require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
-# {{{
-if (0) # tokenizer
-{
-  $m = new \SM\MustacheEngine([
-    'logger' => Closure::fromCallable('logit'),
-  ]);
-  $a = '
-
-    {{^block}} {{#puke}}
-      is truthy
-    {|}
-      is falsy
-    {{/puke}}{{/block}}
-
-  ';
-  $b = $m->tokenize(['{{','}}',' '], $a);
-  $b = $m->parse($a, $b);
-  var_export($a);
-  var_export($b);
-  if ($b && 0)
-  {
-    echo "========\n";
-    foreach($b as $c) {
-      $d = $c[0] ?: 'T';
-      echo "$d:{$c[2]}:{$c[3]}=".var_export($c[1], true)."\n";
-    }
-    echo "========\n";
-  }
-  exit;
-}
-if (0) # renderer
-{
-  $m = new \SM\MustacheEngine([
-    'logger' => Closure::fromCallable('logit'),
-  ]);
-  $a = '
-
-    {\\$x} \\ {${x}}
-    \\\\$$
-
-    {{^block}}{{#puke}}
-      is truthy\n\n\n\n
-    {{|}}
-TEMPLATE
-;
-TEMPLATE               ;
-      is falsy
-    {{/puke}}{{/block}}
-
-  ';
-  echo "========\n$a";
-  $a = $m->render($a, [
-    'block' => 0,
-    'puke'  => 1,
-  ]);
-  echo "========\n$a";
-  #var_export($a);
-  /***
-  foreach($a as $b) {
-    $c = $b[0] ?: 'T';
-    echo "$c:{$b[2]}:{$b[3]}=".var_export($b[1], true)."\n";
-  }
-  /***/
-  echo "========\n";
-  exit;
-}
-# }}}
 # prep {{{
 # check arguments
 $args = array_slice($argv, 1);
-if (!($i = count($args)) || !$args[0])
+if (!count($args))
 {
-  # all
-  if (!($file = glob(__DIR__.DIRECTORY_SEPARATOR.'*.json')))
-  {
-    logit("glob() failed\n");
-    exit;
-  }
-  $test = -1;
+  logit("specify arguments: <variant=0/1> [<iterations=1>]\n");
+  exit(1);
 }
-else
+$test  = intval($args[0]);
+$count = isset($args[1]) ? intval($args[1]) : 1;
+# load testfiles
+if (!($file = glob(__DIR__.DIRECTORY_SEPARATOR.'*.json')))
 {
-  # single
-  $file = [__DIR__.DIRECTORY_SEPARATOR.$args[0]];
-  $test = ($i === 1) ? -1 : intval($args[1]);
+  logit("glob() failed\n");
+  exit(1);
 }
 $json = [];
 foreach ($file as $i)
@@ -95,7 +24,7 @@ foreach ($file as $i)
       !isset($j['tests']))
   {
     logit("incorrect testfile: $i");
-    exit;
+    exit(1);
   }
   $i = explode('.', basename($i))[0];
   if ($i === 'lambdas')
@@ -112,62 +41,70 @@ foreach ($file as $i)
   }
   $json[$i] = $j;
 }
-logit("selected: ".implode('/', array_keys($json))."\n");
 # }}}
 # run {{{
-$m = new \SM\MustacheEngine([
-  'logger' => ~$test ? Closure::fromCallable('logit') : null,
-  #'logger' => Closure::fromCallable('logit'),
-  'recur'  => true,
-  'escape' => true,
-]);
-if (~$test)
+###
+# measure load
+$t = -hrtime(true);
+###
+# select instance variant
+if ($test)
 {
-  # single
-  $json = array_pop($json);
-  $test = $json['tests'][$test];
-  logit("running test: {$test['name']}\n");
-  logit("description: {$test['desc']}\n");
-  logit("template: [".str_bg_color($test['template'], 'cyan')."]\n");
-  logit('data: '.var_export($test['data'], true)."\n");
-  logit("expected: [".str_bg_color($test['expected'], 'magenta')."]\n");
-  logit("\n");
-  $res = $m->render($test['template'], $test['data']);
-  logit("\n");
-  logit("result: [".str_bg_color($res, 'magenta')."]\n");
-  if ($res === $test['expected']) {
-    logit(str_fg_color('ok', 'green', 1)."\n");
-  }
-  else {
-    logit(str_fg_color('fail', 'red', 1)."\n");
-  }
+  require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
+  $m = new \SM\MustacheEngine([
+    'recur'  => true,
+    'escape' => true,
+  ]);
+  $i = 'sm-mustache';
 }
 else
 {
-  # multiple
-  $noSkip = (count($json) > 1);
+  require __DIR__.DIRECTORY_SEPARATOR.'mustache_php'.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
+  $m = new Mustache_Engine();
+  $i = 'mustache';
+}
+$t = intval(($t + hrtime(true))/1e+6);# nano to milli
+logit("\nPHP> ".str_fg_color($i, 'cyan', 1).": loaded in {$t}ms, loop($count) ");
+###
+# measure iterations
+$S = intval($count / 10);
+$s = 0;
+$t = -hrtime(true);
+sleep(1);# 1000ms
+###
+# iterate over all covered tests
+while ($count--)
+{
+  if (++$s >= $S) {logit('.');$s = 0;}
+  ###
   foreach ($json as $k => $j)
   {
-    logit("> testing: ".str_fg_color($k, 'cyan', 1)."\n");
+    if ($k === 'lambdas') {# these are not supported in others
+      continue;
+    }
+    #logit("> testing: ".str_fg_color($k, 'cyan', 1)."\n");
     $i = 0;
     foreach ($j['tests'] as $test)
     {
-      logit(" #".str_fg_color($i++, 'cyan', 1).": {$test['name']}.. ");
-      if (!$noSkip && isset($test['skip']) && $test['skip']) {
-        logit(str_fg_color('skip', 'blue', 0)."\n");
+      #logit(" #".str_fg_color($i++, 'cyan', 1).": {$test['name']}.. ");
+      if (isset($test['skip']) && $test['skip']) {
+        #logit(str_fg_color('skip', 'blue', 0)."\n");
         continue;
       }
       if ($m->render($test['template'], $test['data']) === $test['expected']) {
-        logit(str_fg_color('ok', 'green', 1)."\n");
+        #logit(str_fg_color('ok', 'green', 1)."\n");
       }
       else
       {
         logit(str_fg_color('fail', 'red', 1)."\n");
-        if (!$noSkip) {break 2;}
+        break 2;
       }
     }
   }
 }
+$t = intval(($t + hrtime(true))/1e+6);# nano to milli
+logit(" ".($t - 1000)."ms");
+exit(0);
 # }}}
 # util {{{
 function logit($m, $level=-1)

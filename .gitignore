@@ -1,5 +1,6 @@
 /tests/spec
-/tests/mustache*/
+/tests/mustache_php/
+/tests/node_modules
 *.bmp
 *.vim
 *.swp

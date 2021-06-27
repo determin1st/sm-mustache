@@ -39,7 +39,9 @@ was reduced, monolithized and namespaced.. a total, individual rewrite from ~`13
 <details>
 <summary>performance</summary>
 
-images here
+test loops over mustache spec files, fails skipped and counted
+[![vs](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed.jpg)](https://github.com/determin1st/sm-mustache#tests)
+---
 </details>
 <details>
 <summary>specification</summary>

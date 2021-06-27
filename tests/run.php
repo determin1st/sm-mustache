@@ -120,6 +120,7 @@ $m = new \SM\MustacheEngine([
   #'logger' => Closure::fromCallable('logit'),
   'recur'  => true,
   'escape' => true,
+  'compat' => true,
 ]);
 if (~$test)
 {
@@ -163,7 +164,9 @@ else
       else
       {
         logit(str_fg_color('fail', 'red', 1)."\n");
-        if (!$noSkip) {break 2;}
+        if (!$noSkip || !isset($test['skip']) || !$test['skip']) {
+          break 2;
+        }
       }
     }
   }
