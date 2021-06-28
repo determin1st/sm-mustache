@@ -73,8 +73,8 @@ require_once __DIR__.DIRECTORY_SEPARATOR.'.inc.'.DIRECTORY_SEPARATOR.'mustache.p
 $tp = new \SM\MustacheEngine([
   'delims'  => '{{ }}',
   'helpers' => null,  # context fallbacks array/object
-  'logger'  => null,  # callable for debug logs
-  'escaper' => null,  # variables callable escaper (or truthy for HTML escaping)
+  'logger'  => null,  # callable, for debug logs
+  'escaper' => null,  # callable, variables escaper (or truthy for HTML escaping)
   'recur'   => false, # templates recursion flag
 ]);
 

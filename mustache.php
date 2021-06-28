@@ -38,8 +38,8 @@ TEMPLATE;
     'templates' => [],    # template=>[delims[3]=>index]
     'funcs'     => [],    # index=>function
     'helpers'   => null,  # context fallback array/object
-    'logger'    => null,  # callable for debug logs
-    'escaper'   => null,  # variables callable escaper (or truthy for HTML escaping)
+    'logger'    => null,  # callable, for debug logs
+    'escaper'   => null,  # callable, variables escaper (or truthy for HTML escaping)
     'recur'     => false, # templates recursion flag
   ];
   function __construct($o = [])
