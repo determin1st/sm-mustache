@@ -15,7 +15,7 @@ class MustacheEngine {
       '!' => '!',# comment
       '.' => '.',# iterator
       '&' => '_',# variable (tagged)
-      # _ => variable (no tag)
+      # _ => variable (not tagged)
     ],
     $BLOCKS = '#^|/!',
     $TE = [# evaluated chunks of code
@@ -35,27 +35,36 @@ TEMPLATE;
   ###
   private $O = [
     'delims'    => ['{{',' ','}}','{{ }}'],# default: opener,indent,closer,all
-    'templates' => [],# template=>[delims[3]=>index]
-    'funcs'     => [],# index=>function
-    'helpers'   => null,# context fallback array
-    'logger'    => null,# callable
-    'recur'     => false,# template function recursion flag
-    'escape'    => null,# escape function or truthy for HTML
+    'templates' => [],    # template=>[delims[3]=>index]
+    'funcs'     => [],    # index=>function
+    'helpers'   => null,  # context fallback array/object
+    'logger'    => null,  # callable for debug logs
+    'escaper'   => null,  # variables callable escaper (or truthy for HTML escaping)
+    'recur'     => false, # templates recursion flag
   ];
   function __construct($o = [])
   {
     # assumed correct
-    isset($o[$k = 'delims'])  && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'helpers']) && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'logger'])  && ($this->O[$k] = $o[$k]);
+    isset($o[$k = 'escaper']) && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'recur'])   && ($this->O[$k] = $o[$k]);
-    isset($o[$k = 'escape'])  && ($this->O[$k] = $o[$k]);
-    # prepare once
+    # initialize instance once
     if (!isset(self::$TE['i']))
     {
       self::$TE['i'] = '';
       self::$TE['f'] = str_replace("\r", "", trim(self::$TE['f']));
       self::$DELIMS_EXP = str_replace('_', preg_quote(self::DELIMS), self::$DELIMS_EXP);
+    }
+    # set instance delimiters
+    if (isset($o[$k = 'delims']))
+    {
+      if (is_string($o[$k]) && preg_match(self::$DELIMS_EXP, $o[$k], $i)) {
+        $this->O[$k] = $p1 = [$i[1],$i[2],$i[3],$o[$k]];
+      }
+      else {
+        $this->log('incorrect delimiters: '.var_export($o[$k], true), 1);
+      }
     }
   }
   function log($text, $level = 0) {
@@ -432,10 +441,9 @@ class MustacheContext # {{{
     if ($isFunc = is_callable($v))
     {
       $v = ($v instanceof MustacheWrap)
-        ? $v('')
-        : call_user_func($v, '');
+        ? $v('') : call_user_func($v, '');
     }
-    # check type
+    # check proper type
     if (is_string($v))
     {
       # check template recursion
@@ -446,7 +454,7 @@ class MustacheContext # {{{
         # recurse
         $v = $this->engine->render($v, $this->delims, $this->stack[1]);
       }
-      elseif (($f = $this->O['escape']) && !$tag)
+      elseif (!$tag && ($f = $this->O['escaper']))
       {
         # escape characters
         $v = is_callable($f) ? $f($v) : htmlspecialchars($v);
@@ -535,7 +543,7 @@ class MustacheContext # {{{
       $k = '';
       foreach ($v as $j)
       {
-        array_push($this->stack, $j);
+        $this->stack[] = $j;
         $k .= $this->O['funcs'][$i]($this);
         array_pop($this->stack);
       }
@@ -543,7 +551,7 @@ class MustacheContext # {{{
     else
     {
       # context expansion
-      array_push($this->stack, $v);
+      $this->stack[] = $v;
       $k = $this->O['funcs'][$i]($this);
       array_pop($this->stack);
     }

@@ -116,11 +116,10 @@ logit("selected: ".implode('/', array_keys($json))."\n");
 # }}}
 # run {{{
 $m = new \SM\MustacheEngine([
-  'logger' => ~$test ? Closure::fromCallable('logit') : null,
-  #'logger' => Closure::fromCallable('logit'),
-  'recur'  => true,
-  'escape' => true,
-  'compat' => true,
+  'logger'  => ~$test ? Closure::fromCallable('logit') : null,
+  #'logger'  => Closure::fromCallable('logit'),
+  'escaper' => true,
+  'recur'   => true,
 ]);
 if (~$test)
 {

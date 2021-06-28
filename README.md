@@ -4,7 +4,7 @@ personal [mustache](https://mustache.github.io/) templates **eval**uator
   <summary>history</summary>
 
 [The origin](https://github.com/bobthecow/mustache.php)
-was reduced, monolithized and namespaced.. a total, individual rewrite from ~`130`kb to ~`15`kb.
+was reduced, monolithized and namespaced.. a total, individual rewrite from ~`130`kb to ~`20`kb.
 #### reduced (removed)
 - `=`, template delimiters modifier.
 - `<`, template parent, inheritance.
@@ -12,9 +12,9 @@ was reduced, monolithized and namespaced.. a total, individual rewrite from ~`13
 - pragmas (not in spec).
 - escaping with `{{{trippleStash}}}`.
 - escaping by default (specified explicitly).
-- template recursion by default (specified explicitly).
+- template recursions by default (specified explicitly).
 - exceptions/breaks.
-- strict callables option.
+- strict callables.
 - logger object => function.
 - helpers object => array.
 - camel/snake case mixture => camel case.
@@ -61,14 +61,42 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomm
 </details>
 
 
----
+## usage
+#### include
+```php
+# dropped into <project_home>/inc/mustache.php
+require_once __DIR__.DIRECTORY_SEPARATOR.'.inc.'.DIRECTORY_SEPARATOR.'mustache.php';
+```
+#### construct
+```php
+# defaults
+$tp = new \SM\MustacheEngine([
+  'delims'  => '{{ }}',
+  'helpers' => null,  # context fallbacks array/object
+  'logger'  => null,  # callable for debug logs
+  'escaper' => null,  # variables callable escaper (or truthy for HTML escaping)
+  'recur'   => false, # templates recursion flag
+]);
+
+# same
+$tp = new \SM\MustacheEngine();
+
+# mustache spec compatible
+$mp = new \SM\MustacheEngine([
+  'escaper' => true,  # htmlspecialchars($variable)
+  'recur'   => true,  # check lambda result for delimiters and re-render
+]);
+```
+#### render
+```php
+# ...
+```
+
+
+
 
 <details>
   <summary>todo</summary>
-
-# usage
-### construct
-### render
 
 # syntax extentions
 ## else block
