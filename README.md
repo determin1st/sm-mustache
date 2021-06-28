@@ -1,7 +1,7 @@
 [![logo](https://raw.githack.com/determin1st/sm-mustache/master/tests/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
 personal [mustache](https://mustache.github.io/) templates **eval**uator
 <details>
-  <summary>details</summary>
+  <summary>history</summary>
 
 [The origin](https://github.com/bobthecow/mustache.php)
 was reduced, monolithized and namespaced.. a total, individual rewrite from ~`130`kb to ~`15`kb.

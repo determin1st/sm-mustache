@@ -41,7 +41,6 @@ TEMPLATE;
     'logger'    => null,# callable
     'recur'     => false,# template function recursion flag
     'escape'    => null,# escape function or truthy for HTML
-    'compat'    => false,# spec compatibility flag
   ];
   function __construct($o = [])
   {
@@ -51,7 +50,6 @@ TEMPLATE;
     isset($o[$k = 'logger'])  && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'recur'])   && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'escape'])  && ($this->O[$k] = $o[$k]);
-    isset($o[$k = 'compat'])  && ($this->O[$k] = $o[$k]);
     # prepare once
     if (!isset(self::$TE['i']))
     {
@@ -93,7 +91,7 @@ TEMPLATE;
     }
     else
     {
-      $this->log('incorrect api usage, check call spec', 1);
+      $this->log('incorrect usage, check the call spec', 1);
       return $text;
     }
     # create template function
@@ -314,7 +312,7 @@ TEMPLATE;
     return $tokens;
   }
   # }}}
-  function parse(&$text, &$tokens, $p = null) # {{{
+  function parse(&$text, &$tokens, &$p = null) # {{{
   {
     # construct syntax tree
     $tree = [];# [0:<type>,1:<name>,2:<line>,3:<indent>,4:<text>,5:<children>]
@@ -426,15 +424,22 @@ class MustacheContext # {{{
     # variable {{{
     # get tag and strip it from the name
     ($tag = ($name[0] === '&')) && ($name = substr($name, 1));
-    # get value and invoke lambda
-    if (is_callable($v = $this->v($name))) {
-      $v = call_user_func($v, '');
+    # checkout the value
+    if (!($v = $this->v($name))) {
+      return '';
+    }
+    # invoke lambda
+    if ($isFunc = is_callable($v))
+    {
+      $v = ($v instanceof MustacheWrap)
+        ? $v('')
+        : call_user_func($v, '');
     }
     # check type
     if (is_string($v))
     {
       # check template recursion
-      if ($this->O['recur'] &&
+      if ($isFunc && $this->O['recur'] &&
           strpos($v, $this->delims[0]) !== false &&
           strpos($v, $this->delims[2]) !== false)
       {
@@ -454,39 +459,44 @@ class MustacheContext # {{{
     return '';
     # }}}
   }
-  function f($i, $name, $negate)
+  function f($i, $name, $inverted)
   {
     # block {{{
     # checkout the value
     if (!($v = $this->v($name)))
     {
-      # render negated, empty otherwise
-      return $negate
+      # handle falsy
+      return $inverted
         ? $this->O['funcs'][$i]($this)
         : '';
     }
     elseif (is_callable($v))
     {
-      # lambda block
-      var_dump($v);echo "\nAAAAAAAAAAAAAAA\n";
-      # search template key
+      # handle lambda block
+      # determine raw block contents
       $t = &$this->O['templates'];
-      $j = $this->delims[3];
-      $k = reset($t);
-      while (!isset($k[$j]) || $k[$j] !== $i) {
-        $k = next($t);
+      $a = $this->delims[3];
+      $b = reset($t);
+      while (!isset($b[$a]) || $b[$a] !== $i) {
+        $b = next($t);
       }
+      $a = key($t);
       # invoke
-      if (!($v = call_user_func($v, key($t))))
+      $v = ($v instanceof MustacheWrap)
+        ? $v($a) # wrapped object method
+        : call_user_func($v, $a); # true lambda
+      # check falsy
+      if (!$v)
       {
-        return $negate
+        return $inverted
           ? $this->O['funcs'][$i]($this)
           : '';
       }
-      elseif ($negate) {
+      # check inverted block
+      if ($inverted) {
         return '';
       }
-      # check substitution
+      # check block substitution
       if (is_string($v))
       {
         # check template recursion
@@ -501,10 +511,11 @@ class MustacheContext # {{{
       }
       # proceed to expansion..
     }
-    elseif ($negate) {# truthy non-lambda value
-      return '';# renders negated block empty
+    # handle inverted
+    if ($inverted) {
+      return '';
     }
-    # standard block
+    # handle standard block
     # check non-expandable
     if (!($k = is_array($v)) && !is_object($v))
     {
@@ -539,63 +550,113 @@ class MustacheContext # {{{
     return $k;
     # }}}
   }
-  private function v($name, &$stack = null)
+  private function v($name)
   {
-    # resolve value {{{
-    # prepare
-    !$stack && ($stack = &$this->stack);
-    # checkout property name
-    if (strpos($name, '.') === false)
-    {
-      # search from the last to the first context frame in the stack
-      for ($i = count($stack) - 1; $i >= 0; --$i)
-      {
-        # skip falsy
-        if (!$stack[$i]) {
-          continue;
-        }
-        $x = &$stack[$i];
-        # check object
-        if (is_object($x))
-        {
-          # skip function
-          if ($x instanceof Closure) {
-            continue;
-          }
-          # check method first
-          if (method_exists($x, $name)) {
-            return [$x, $name];# pass callable
-          }
-          # check property
-          if (isset($x->$name)) {
-            return $x->$name;
-          }
-        }
-        # check array property
-        if (is_array($x) && array_key_exists($name, $x)) {
-          return $x[$name];
-        }
-      }
-      # not found..
-      return '';
-    }
-    # checkout implicit iterator
+    # name resolution {{{
+    # resolve implicit iterator
     if ($name === '.') {
       return end($this->stack);
     }
-    # checkout dot notation
-    foreach (explode('.', $name) as $name)
-    {
-      # recurse
-      if (!($v = $this->v($name, $stack))) {
-        break;
-      }
-      # dive into the value
-      unset($stack);
-      $stack = [$v];
+    # prepare
+    if (strpos($name, '.') === false) {
+      $dots = null;
     }
-    return $v;
+    else
+    {
+      $dots = explode('.', $name);
+      $name = array_shift($dots);
+    }
+    # resolve first name
+    # iterate stack backwards
+    for ($v = '', $i = count($this->stack) - 1; $i >= 0; --$i)
+    {
+      # checkout truthy frame
+      if ($x = &$this->stack[$i])
+      {
+        # check array or object
+        if (is_array($x))
+        {
+          # check property
+          if (array_key_exists($name, $x))
+          {
+            $v = &$x[$name];
+            break;
+          }
+        }
+        elseif (is_object($x))
+        {
+          # check property
+          if (isset($x->$name))
+          {
+            $v = &$x->$name;
+            break;
+          }
+          # check method
+          if (method_exists($x, $name))
+          {
+            # traversal through methods is not supported, so,
+            # this must be the last name, wrap otherwise
+            return $dots
+              ? '' : new MustacheWrap($x, $name);
+          }
+        }
+      }
+    }
+    # check non-resolved or nothing more to resolve
+    if (!$v || !$dots) {
+      return $v;
+    }
+    # resolve dot notation
+    # dive into value (til the last name)
+    $name = array_pop($dots);
+    foreach ($dots as $i)
+    {
+      # array or object property must be set
+      if (is_array($v))
+      {
+        if (isset($v[$i]))
+        {
+          $v = &$v[$i];
+          continue;
+        }
+      }
+      elseif (is_object($v))
+      {
+        if (isset($v->$name))
+        {
+          $v = &$v->$name;
+          continue;
+        }
+      }
+      return '';
+    }
+    # resolve the last name
+    if (is_array($v)) {
+      return isset($v[$name]) ? $v[$name] : '';
+    }
+    if (is_object($v))
+    {
+      # must be property or method
+      if (isset($v->$name)) {
+        return $v->$name;
+      }
+      if (method_exists($name, $v)) {
+        return new MustacheWrap($v, $name);
+      }
+    }
+    return '';
     # }}}
+  }
+}
+# }}}
+class MustacheWrap # {{{
+{
+  private $o, $m;
+  function __construct($o, $m) {
+    $this->o = $o; $this->m = $m;
+  }
+  function __invoke($a) {
+    return $this->o[$m]($a);
   }
 }
 # }}}
