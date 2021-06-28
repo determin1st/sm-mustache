@@ -16,7 +16,6 @@ was reduced, monolithized and namespaced.. a total, individual rewrite from ~`13
 - exceptions/breaks.
 - strict callables.
 - logger object => function.
-- helpers object => array.
 - camel/snake case mixture => camel case.
 - filesystem template loaders (strings only, [UTF-8](https://en.wikipedia.org/wiki/UTF-8) is assumed).
 - filesystem cache (memory cache only).
@@ -62,12 +61,17 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomm
 
 
 ## usage
-#### include
+<details>
+<summary>include</summary>
+
 ```php
 # dropped into <project_home>/inc/mustache.php
 require_once __DIR__.DIRECTORY_SEPARATOR.'.inc.'.DIRECTORY_SEPARATOR.'mustache.php';
 ```
-#### construct
+</details>
+<details>
+<summary>construct</summary>
+
 ```php
 # defaults
 $tp = new \SM\MustacheEngine([
@@ -87,13 +91,19 @@ $mp = new \SM\MustacheEngine([
   'recur'   => true,  # check lambda result for delimiters and re-render
 ]);
 ```
-#### render
+</details>
+<details>
+<summary>render</summary>
+
 ```php
 # ...
+# ...
+# ...
 ```
+</details>
 
 
-
+---
 
 <details>
   <summary>todo</summary>

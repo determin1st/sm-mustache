@@ -100,7 +100,7 @@ TEMPLATE;
     }
     else
     {
-      $this->log('incorrect usage, check the call spec', 1);
+      $this->log('incorrect usage, check the call syntax', 1);
       return $text;
     }
     # create template function
