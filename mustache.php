@@ -607,6 +607,7 @@ class MustacheContext # {{{
       $x = $this->engine->func($i, $this);
       array_pop($this->stack);
     }
+    # done
     return $x;
     # }}}
   }
