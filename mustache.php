@@ -537,7 +537,7 @@ class MustacheContext # {{{
     # resolve name to value
     if (!($v = $this->v($name)))
     {
-      # handle falsy (empty string/array, 0, null, false)
+      # handle falsy (not found or empty string/array, 0, null, false)
       return $inverted
         ? $this->engine->func($i, $this)
         : '';
