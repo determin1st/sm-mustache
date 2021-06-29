@@ -1,5 +1,11 @@
 <?php
 # prep {{{
+/***/
+#echo "=============\n";
+#var_dump(opcache_get_status());
+#echo "=============\n";
+#exit;
+/***/
 # check arguments
 $args = array_slice($argv, 1);
 if (!count($args))
@@ -52,8 +58,8 @@ if ($test)
 {
   require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
   $m = new \SM\MustacheEngine([
-    'recur'  => true,
-    'escape' => true,
+    'escaper' => true,
+    'recur'   => true,
   ]);
   $i = 'sm-mustache';
 }

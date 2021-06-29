@@ -1,7 +1,7 @@
 <?php
 namespace SM;
-class MustacheEngine {
-  # BASE {{{
+class MustacheEngine {# TODO: dont cache custom delimiters
+  ### {{{
   const SPEC    = '1.1.2';# origin's
   const NAME_SZ = 32;# max {{name}} size (without delimiters/spacing)
   const DELIMS  = '{}[]()<>:%=~-_?*@!|';# valid delimiter chars
@@ -33,15 +33,14 @@ TEMPLATE;
       '_' => '{$x(%s)}',
     ];
   ###
-  private $O = [
+  private $O = [# options/config
     'delims'    => ['{{',' ','}}','{{ }}'],# default: opener,indent,closer,all
-    'templates' => [],    # template=>[delims[3]=>index]
-    'funcs'     => [],    # index=>function
     'helpers'   => null,  # context fallback array/object
     'logger'    => null,  # callable, for debug logs
     'escaper'   => null,  # callable, variables escaper (or truthy for HTML escaping)
     'recur'     => false, # templates recursion flag
   ];
+  private $cache,$hash,$texts,$funcs,$total;# data
   function __construct($o = [])
   {
     # assumed correct
@@ -49,13 +48,6 @@ TEMPLATE;
     isset($o[$k = 'logger'])  && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'escaper']) && ($this->O[$k] = $o[$k]);
     isset($o[$k = 'recur'])   && ($this->O[$k] = $o[$k]);
-    # initialize instance once
-    if (!isset(self::$TE['i']))
-    {
-      self::$TE['i'] = '';
-      self::$TE['f'] = str_replace("\r", "", trim(self::$TE['f']));
-      self::$DELIMS_EXP = str_replace('_', preg_quote(self::DELIMS), self::$DELIMS_EXP);
-    }
     # set instance delimiters
     if (isset($o[$k = 'delims']))
     {
@@ -66,6 +58,28 @@ TEMPLATE;
         $this->log('incorrect delimiters: '.var_export($o[$k], true), 1);
       }
     }
+    # initialize
+    if (!isset(self::$TE['i']))
+    {
+      self::$TE['i'] = '';
+      self::$TE['f'] = str_replace("\r", "", trim(self::$TE['f']));
+      self::$DELIMS_EXP = str_replace('_', preg_quote(self::DELIMS), self::$DELIMS_EXP);
+    }
+    $this->cache = new \SplFixedArray(65536);# root (~4mb)
+    $this->hash  = new \SplFixedArray(1000);
+    $this->texts = new \SplFixedArray(1000);
+    $this->funcs = new \SplFixedArray(1000);
+    $this->total = 0;
+  }
+  function func($i, $ctx)
+  {
+    return ($i >= 0 && $i < $this->total)
+      ? $this->funcs[$i]($ctx) : '';
+  }
+  function text($i)
+  {
+    return ($i >= 0 && $i < $this->total)
+      ? $this->texts[$i] : '';
   }
   function log($text, $level = 0) {
     ($log = $this->O['logger']) && $log($text, $level);
@@ -82,7 +96,7 @@ TEMPLATE;
       $p2 = $p1;
       $p1 = $this->O['delims'];
     }
-    elseif ($p1)# delimiters and context
+    elseif ($p1)# context and custom delimiters
     {
       # check non-strict (usage)
       if (!is_array($p1))
@@ -100,7 +114,7 @@ TEMPLATE;
     }
     else
     {
-      $this->log('incorrect usage, check the call syntax', 1);
+      $this->log('missing arguments', 0);
       return $text;
     }
     # create template function
@@ -108,22 +122,17 @@ TEMPLATE;
       return $text;
     }
     # execute within the context
-    return $this->O['funcs'][$i](
+    return $this->funcs[$i](
       new MustacheContext($this, $this->O, $p1, $p2)
     );
   }
   # }}}
   private function renderFunc(&$delims, &$text, &$tree = null, $depth = -1) # {{{
   {
-    # check cache
-    $t = &$this->O['templates'];
-    if (!isset($t[$text])) {
-      $t[$text] = [];
-    }
-    # check cached
-    $k = &$t[$text];
-    if (isset($k[$delims[3]])) {
-      return $k[$delims[3]];
+    # compute hash and checkout cache (experimental)
+    $k = hash('md4', $text, true);
+    if (($i = $this->cacheGet($k)) !== null) {
+      return $i;
     }
     # create parse tree
     if (!$tree)
@@ -135,12 +144,67 @@ TEMPLATE;
     }
     # create template renderer function
     $f = $this->compose($delims, $tree, ++$depth);
-    $i = count($this->O['funcs']);# must be after composition
+    $i = $this->total;# must go after composition
     $f = sprintf(self::$TE['f'], $i, $depth, $f);
-    $this->O['funcs'][$i] = eval("return ($f);");
+    $this->funcs[$i] = eval("return ($f);");
+    $this->texts[$i] = $text;
     $this->log($f, 0);
-    # set cache and complete
-    return $k[$delims[3]] = $i;
+    return $this->cacheSet($k, $i)
+      ? $i : -1;
+  }
+  # }}}
+  private function cacheGet($k) # {{{
+  {
+    # determine root index
+    $y = (ord($k[1]) << 8) + ord($k[0]);
+    $x = $this->cache[$y];
+    # lookup
+    for ($i = 2; $i < 16; ++$i)
+    {
+      if ($x === null || is_int($x)) {
+        break;
+      }
+      $x = $x[ord($k[$i])];
+    }
+    return $x;
+  }
+  # }}}
+  private function cacheSet($k, $ki) # {{{
+  {
+    # determine root index
+    $z = $this->cache;
+    $y = (ord($k[1]) << 8) + ord($k[0]);
+    $x = $z[$y];
+    # lookup
+    for ($i = 2; $i < 16; ++$i)
+    {
+      if ($x === null)# free place
+      {
+        $this->log("free,i=$i,ki=$ki");
+        $z[$y] = $ki;
+        $this->hash[$ki] = $k;
+        $this->total = $ki + 1;
+        return true;
+      }
+      if (is_int($x))# hold
+      {
+        # allocate new bucket
+        $b = new \SplFixedArray(256);
+        # put holder to a new position
+        $a = $this->hash[$x];
+        $b[ord($a[$i])] = $x;
+        # replace holder with the bucket
+        $z[$y] = $b;
+        $this->log("+bucket,i=$i,ki=$ki");
+      }
+      # traverse to the next bucket
+      $z = $z[$y];
+      $y = ord($k[$i]);
+      $x = $z[$y];
+      $this->log("traverse,i=$i");
+    }
+    $this->log('hash collision');
+    return false;
   }
   # }}}
   function tokenize(&$delims, &$text) # {{{
@@ -431,9 +495,9 @@ class MustacheContext # {{{
   function __invoke($name)
   {
     # variable {{{
-    # get tag and strip it from the name
+    # strip name tag
     ($tag = ($name[0] === '&')) && ($name = substr($name, 1));
-    # checkout the value
+    # resolve name to value
     if (!($v = $this->v($name))) {
       return '';
     }
@@ -470,43 +534,42 @@ class MustacheContext # {{{
   function f($i, $name, $inverted)
   {
     # block {{{
-    # checkout the value
+    # resolve name to value
     if (!($v = $this->v($name)))
     {
-      # handle falsy
+      # handle falsy (empty string/array, 0, null, false)
       return $inverted
-        ? $this->O['funcs'][$i]($this)
+        ? $this->engine->func($i, $this)
         : '';
     }
+    /***
+    elseif ($inverted) # LAMBDAS IMPLEMENTED!?
+    {
+      return '';
+    }
+    /***/
     elseif (is_callable($v))
     {
       # handle lambda block
-      # determine raw block contents
-      $t = &$this->O['templates'];
-      $a = $this->delims[3];
-      $b = reset($t);
-      while (!isset($b[$a]) || $b[$a] !== $i) {
-        $b = next($t);
-      }
-      $a = key($t);
-      # invoke
+      # get raw block contents and invoke function
+      $x = $this->engine->text($i);
       $v = ($v instanceof MustacheWrap)
-        ? $v($a) # wrapped object method
-        : call_user_func($v, $a); # true lambda
-      # check falsy
+        ? $v($x) # wrapped object method
+        : call_user_func($v, $x); # callable
+      # check result type
       if (!$v)
       {
+        # handle falsy
         return $inverted
-          ? $this->O['funcs'][$i]($this)
+          ? $this->engine->func($i, $this)
           : '';
       }
-      # check inverted block
-      if ($inverted) {
-        return '';
+      elseif ($inverted) {
+        return '';# handle truthy inverted
       }
-      # check block substitution
-      if (is_string($v))
+      elseif (is_string($v))
       {
+        # handle content substitution
         # check template recursion
         if ($this->O['recur'] &&
             strpos($v, $this->delims[0]) !== false &&
@@ -514,37 +577,26 @@ class MustacheContext # {{{
         {
           $v = $this->engine->render($v, $this->delims, $this->stack[1]);
         }
-        # replace contents
         return $v;
       }
-      # proceed to expansion..
+      # fallthrough..
     }
-    # handle inverted
-    if ($inverted) {
-      return '';
+    elseif ($inverted) {
+      return '';# handle truthy inverted
     }
     # handle standard block
-    # check non-expandable
-    if (!($k = is_array($v)) && !is_object($v))
-    {
-      # iterate once
-      array_push($this->stack, $v);
-      $k = $this->O['funcs'][$i]($this);
-      array_pop($this->stack);
-      return $k;
-    }
     # check iterable
-    # array must have all keys numeric (assume all or nothing),
-    # object must be of a special type
-    if (($k && is_int(key($v))) ||
-        (!$k && ($v instanceof Traversable)))
+    # - array must have all keys numeric (assumed all or none)
+    # - object must be traversable
+    if ((($x = is_array($v)) && is_int(key($v))) ||
+        (!$x && is_object($v) && ($v instanceof Traversable)))
     {
       # implicit iterator
-      $k = '';
+      $x = '';
       foreach ($v as $j)
       {
         $this->stack[] = $j;
-        $k .= $this->O['funcs'][$i]($this);
+        $x .= $this->engine->func($i, $this);
         array_pop($this->stack);
       }
     }
@@ -552,10 +604,10 @@ class MustacheContext # {{{
     {
       # context expansion
       $this->stack[] = $v;
-      $k = $this->O['funcs'][$i]($this);
+      $x = $this->engine->func($i, $this);
       array_pop($this->stack);
     }
-    return $k;
+    return $x;
     # }}}
   }
   private function v($name)
@@ -574,7 +626,7 @@ class MustacheContext # {{{
       $dots = explode('.', $name);
       $name = array_shift($dots);
     }
-    # resolve first name
+    # resolve the first name
     # iterate stack backwards
     for ($v = '', $i = count($this->stack) - 1; $i >= 0; --$i)
     {
@@ -602,10 +654,13 @@ class MustacheContext # {{{
           # check method
           if (method_exists($x, $name))
           {
-            # traversal through methods is not supported, so,
-            # this must be the last name, wrap otherwise
-            return $dots
-              ? '' : new MustacheWrap($x, $name);
+            # wrap the last name's function and complete
+            if (!$dots) {
+              return new MustacheWrap($x, $name);
+            }
+            # otherwise, use the call result for the further traversal
+            $v = &$x->$name();
+            break;
           }
         }
       }
@@ -615,36 +670,46 @@ class MustacheContext # {{{
       return $v;
     }
     # resolve dot notation
-    # dive into value (til the last name)
+    # traverse the value (til the last name)
     $name = array_pop($dots);
     foreach ($dots as $i)
     {
-      # array or object property must be set
       if (is_array($v))
       {
+        # property must be set (may be callbable)
         if (isset($v[$i]))
         {
-          $v = &$v[$i];
+          if (is_callable($v[$i])) {
+            $v = &$v[$i]();
+          }
+          else {
+            $v = &$v[$i];
+          }
           continue;
         }
       }
       elseif (is_object($v))
       {
+        # property must be set, method must be called otherwise
         if (isset($v->$name))
         {
           $v = &$v->$name;
           continue;
         }
+        elseif (method_exists($name, $v))
+        {
+          $v = &$v->$name();
+          continue;
+        }
       }
-      return '';
+      return '';# traverse failed
     }
-    # resolve the last name
+    # resolve the last name (array property/function or object property/method)
     if (is_array($v)) {
       return isset($v[$name]) ? $v[$name] : '';
     }
     if (is_object($v))
     {
-      # must be property or method
       if (isset($v->$name)) {
         return $v->$name;
       }
@@ -660,12 +725,8 @@ class MustacheContext # {{{
 class MustacheWrap # {{{
 {
   private $o, $m;
-  function __construct($o, $m) {
-    $this->o = $o; $this->m = $m;
-  }
-  function __invoke($a) {
-    return $this->o[$m]($a);
-  }
+  function __construct($o, $m) { $this->o = $o; $this->m = $m; }
+  function __invoke($a) { return $this->o[$this->m]($a); }
 }
 # }}}
 ?>

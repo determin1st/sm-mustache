@@ -82,7 +82,7 @@ $tp = new \SM\MustacheEngine([
   'recur'   => false, # templates recursion flag
 ]);
 
-# same
+# same (defaults)
 $tp = new \SM\MustacheEngine();
 
 # mustache spec compatible
