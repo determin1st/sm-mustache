@@ -51,12 +51,12 @@ PHPv8.0.7 with OPcache and JIT enabled
 
 <https://github.com/mustache/spec>
 [![comments](https://raw.githack.com/determin1st/sm-mustache/master/tests/comments.jpg)](https://github.com/determin1st/sm-mustache#tests)
-fails below: `{{{triple_stashes}}}` are not supported.
 [![interpolation](https://raw.githack.com/determin1st/sm-mustache/master/tests/interpolation.jpg)](https://github.com/determin1st/sm-mustache#tests)
+fails above: `{{{triple_stashes}}}` are not supported.
 [![inverted](https://raw.githack.com/determin1st/sm-mustache/master/tests/inverted.jpg)](https://github.com/determin1st/sm-mustache#tests)
-fails below: delimiter alternation is not supported.
-the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomment-868940293).
 [![lambdas](https://raw.githack.com/determin1st/sm-mustache/master/tests/lambdas.jpg)](https://github.com/determin1st/sm-mustache#tests)
+fails above: delimiter alternation in template is not supported.
+the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomment-868940293).
 [![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache#tests)
 ---
 </details>
