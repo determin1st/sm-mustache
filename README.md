@@ -26,7 +26,7 @@ test loops over mustache spec files (except lambdas), fails are skipped and coun
 [![inverted](https://raw.githack.com/determin1st/sm-mustache/master/tests/inverted.jpg)](https://github.com/determin1st/sm-mustache#tests)
 [![lambdas](https://raw.githack.com/determin1st/sm-mustache/master/tests/lambdas.jpg)](https://github.com/determin1st/sm-mustache#tests)
 :point_up: delimiter alternation in template is not supported,
-the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomment-868940293).
+the last one is [doubtful](https://github.com/mustache/spec/issues/128).
 [![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache#tests)
 ---
 </details>
