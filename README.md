@@ -1,5 +1,5 @@
 [![logo](https://raw.githack.com/determin1st/sm-mustache/master/tests/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
-personal [mustache](https://mustache.github.io/) templates **eval**uator
+[mustache](https://mustache.github.io/) templates **eval**uator
 
 ## requirements
 - [PHP](https://www.php.net/) 7.4+
