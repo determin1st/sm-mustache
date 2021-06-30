@@ -47,7 +47,7 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomm
 </details>
 
 
-## usage
+## usage examples
 <details>
 <summary>include</summary>
 
@@ -89,9 +89,29 @@ $mp = new \SM\MustacheEngine([
 ```
 </details>
 
+
 ## call syntax
-### ->render(template, context)
-### ->render(template, delimiters, context)
+#### `$instance = new \SM\MustacheEngline($options);`
+<details>
+<summary>parameters</summary>
+
+todo
+</details>
+#### `$instance->render(template, context);`
+#### `$instance->render(template, delimiters, context);`
+<details>
+<summary>parameters</summary>
+
+todo
+</details>
+
+
+
+
+
+
+
+
 
 
 <details>
