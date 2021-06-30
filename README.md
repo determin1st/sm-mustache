@@ -98,8 +98,8 @@ $mp = new \SM\MustacheEngine([
 todo
 </details>
 
-#### `$tp->render(template, context);`
-#### `$tp->render(template, delimiters, context);`
+#### `$tp->render($template, $context);`
+#### `$tp->render($template, $delimiters, $context);`
 <details>
 <summary>parameters</summary>
 
