@@ -11,9 +11,9 @@ personal [mustache](https://mustache.github.io/) templates **eval**uator
 test loops over mustache spec files (except lambdas), fails are skipped and counted.
 [mustache.js](https://github.com/janl/mustache.js) fails in one test: [issue](https://github.com/janl/mustache.js/issues/65)
 [![vs](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed.jpg)](https://github.com/determin1st/sm-mustache#tests)
-PHPv7.4.5, NODEv10.14.2
+PHPv7.4.5, NODEv10.14.2 :point_up:
 [![vs2](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed2.jpg)](https://github.com/determin1st/sm-mustache#tests)
-PHPv8.0.7 with OPcache and JIT enabled
+PHPv8.0.7 with OPcache and JIT enabled :point_up:
 ---
 </details>
 <details>
@@ -22,10 +22,10 @@ PHPv8.0.7 with OPcache and JIT enabled
 <https://github.com/mustache/spec>
 [![comments](https://raw.githack.com/determin1st/sm-mustache/master/tests/comments.jpg)](https://github.com/determin1st/sm-mustache#tests)
 [![interpolation](https://raw.githack.com/determin1st/sm-mustache/master/tests/interpolation.jpg)](https://github.com/determin1st/sm-mustache#tests)
-fails above: `{{{triple_stashes}}}` are not supported.
+`{{{triple_stashes}}}` are not supported :point_up:
 [![inverted](https://raw.githack.com/determin1st/sm-mustache/master/tests/inverted.jpg)](https://github.com/determin1st/sm-mustache#tests)
 [![lambdas](https://raw.githack.com/determin1st/sm-mustache/master/tests/lambdas.jpg)](https://github.com/determin1st/sm-mustache#tests)
-fails above: delimiter alternation in template is not supported.
+delimiter alternation in template is not supported. :point_up:
 the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomment-868940293).
 [![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache#tests)
 ---
