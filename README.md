@@ -64,7 +64,7 @@ $tp = new \SM\MustacheEngine([
   'helpers' => null,  # context fallbacks array/object
   'logger'  => null,  # callable, for debug logs
   'escaper' => null,  # callable, variables escaper (or truthy for HTML escaping)
-  'recur'   => false, # templates recursion flag
+  'recur'   => false, # template recursion flag
 ]);
 
 # same (defaults)
@@ -73,7 +73,7 @@ $tp = new \SM\MustacheEngine();
 # mustache spec compatible
 $mp = new \SM\MustacheEngine([
   'escaper' => true,  # htmlspecialchars($variable)
-  'recur'   => true,  # check lambda result for delimiters and re-render
+  'recur'   => true,  # checks function result for delimiters and re-renders
 ]);
 ```
 </details>
