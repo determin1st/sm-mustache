@@ -33,9 +33,11 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomm
 <details>
 <summary>deviations</summary>
 
-- removed `<` (template parent, inheritance).
-- removed `>` (template partials, inheritance).
-- removed `=` (template delimiters modifier). rendering with custom delimiters is possible but these templates will not be cached.
+- no `<` template parent, inheritance.
+- no `>` template partials, inheritance.
+- no `=` template delimiters modifier. rendering with custom delimiters
+  is possible but templates will not be cached. this implementaion
+  assumes that custom delimiters are used for preparation renders.
 - non-escaping by default, escaper function or a flag must be specified explicitly as an option.
 - non-escaping with `{{{trippleStashes}}}` (when escaping enabled). this behaviour is set with `&` variable tag.
 - template recursions by default are disabled.
