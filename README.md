@@ -42,6 +42,8 @@ test loops over mustache spec files (except lambdas), fails are skipped and coun
 [mustache.js](https://github.com/janl/mustache.js) fails in one test: [issue](https://github.com/janl/mustache.js/issues/65)
 [![vs](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed.jpg)](https://github.com/determin1st/sm-mustache#tests)
 PHPv7.4.5, NODEv10.14.2
+[![vs2](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed2.jpg)](https://github.com/determin1st/sm-mustache#tests)
+PHPv8.0.7 with OPcache and JIT enabled
 ---
 </details>
 <details>

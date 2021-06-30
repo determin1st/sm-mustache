@@ -8,6 +8,7 @@ if (0) # tokenizer
   ]);
   $a = '
 
+
     {{^block}} {{#puke}}
       is truthy
     {|}

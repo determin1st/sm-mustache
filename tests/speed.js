@@ -52,7 +52,7 @@
   // iterate over all covered tests
   while (count--)
   {
-    if (++s >= S) {logit('.');s = 0;}
+    //if (++s >= S) {logit('.');s = 0;}
     ////
     for (let k in json)
     {
