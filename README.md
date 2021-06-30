@@ -43,7 +43,7 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128#issuecomm
 - template recursions by default are disabled.
   recursion occurs when a variable/block is rendered with a function
   which may return a new template string (contains current delimiters).
-  this may be enabled explicitly.
+  may be enabled explicitly.
 </details>
 
 
@@ -89,11 +89,14 @@ $mp = new \SM\MustacheEngine([
 ```
 </details>
 
+## call syntax
+### ->render(template, context)
+### ->render(template, delimiters, context)
 
----
 
 <details>
-  <summary>todo</summary>
+  <summary>later</summary>
+
 
 # syntax extentions
 ## else block
@@ -113,30 +116,10 @@ the name of variable must be alpha-numeric, like `{{1}}`, `{{name}}`, `{{name1}}
 the exception is a variables chain `{{item.1.has.name}}` (called dot notation in the origin).
 ## block
 ## inverted block
-## lambdas
-
 
 # examples
 ## multipass
-```php
-[
-  'en' => [
-    'title' => '{:point_up:} multi-language templates with emojis',
-    'text'  => '
-    {{question_text}} {:question_symbol:}
-    {{#answers}}
-      {{#chosen}}
-        {:white_small_square:} {{answer_text}}
-      {{|}}
-        {:black_small_square:} {{answer_text}}
-      {{/chosen}}
-    {{/answers}}
-    ',
-  ],
-  # other languages...
-]
-```
-## motd
+## helpers
 </details>
 
 
