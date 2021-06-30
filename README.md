@@ -91,14 +91,15 @@ $mp = new \SM\MustacheEngine([
 
 
 ## call syntax
-#### `$instance = new \SM\MustacheEngline($options);`
+#### `$tp = new \SM\MustacheEngline($options);`
 <details>
 <summary>parameters</summary>
 
 todo
 </details>
-#### `$instance->render(template, context);`
-#### `$instance->render(template, delimiters, context);`
+
+#### `$tp->render(template, context);`
+#### `$tp->render(template, delimiters, context);`
 <details>
 <summary>parameters</summary>
 
