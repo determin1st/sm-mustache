@@ -95,6 +95,10 @@ TEMPLATE;
       $this->log('missing arguments', 1);
       return $text;
     }
+    # check rendering needed
+    if (strpos($text, $p1[0]) === false) {
+      return $text;
+    }
     # check current total
     if (($n = $this->total) >= self::T_MAX)
     {
@@ -108,7 +112,7 @@ TEMPLATE;
     # check cache updated
     if ($p0 || $i === -1)
     {
-      # cleanup
+      # nope, cleanup
       for ($i = $this->total - 1; $i >= $n; --$i)
       {
         $this->text[$i] = null;
@@ -132,9 +136,8 @@ TEMPLATE;
         return $i;
       }
     }
-    else {# not cached
+    else {
       $k = null;
-      echo "\nNO CACHE!!\n";
     }
     # create parse tree
     if (!$tree)
@@ -152,7 +155,7 @@ TEMPLATE;
     $this->text[$i] = $text;
     $this->hash[$i] = $k;
     $this->total    = $i + 1;
-    $this->log($f, 0);
+    $k && $this->log($f, 0);
     # complete
     return (!$k || $this->cacheSet($k, $i)) ? $i : -1;
   }
@@ -486,7 +489,7 @@ class MustacheContext # {{{
     $this->delims = $delims;
     $this->stack  = [null,null];
     $this->last   = 1;
-    if ($engine->helpers) {
+    if ($engine->helpers && $delims === $engine->delims) {
       $this->stack[0] = &$engine->helpers;
     }
     if ($context) {
