@@ -548,12 +548,6 @@ class MustacheContext # {{{
         ? $this->engine->func[$i]($this)
         : '';
     }
-    /***
-    elseif ($inverted) # LAMBDAS IMPLEMENTED!?
-    {
-      return '';
-    }
-    /***/
     elseif (is_callable($v))
     {
       # handle lambda block
