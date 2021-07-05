@@ -37,18 +37,16 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128).
 
 - no `<` template parent, inheritance.
 - no `>` template partials, inheritance.
-- no `=` template delimiters modifier. rendering with custom delimiters
-  is possible but templates will not be cached. this implementaion
-  assumes that custom delimiters are used for preparation renders.
-- non-escaping by default, escaper function or a flag must be specified explicitly as an option.
-- non-escaping with `{{{trippleStashes}}}` (when escaping enabled). this behaviour is set with `&` variable tag.
-- template recursions by default are disabled.
-  recursion occurs when a variable/block is rendered with a function
-  which may return a new template string (contains current delimiters).
-  may be enabled explicitly.
+- no `=` template delimiters modifier.
+  rendering with non-instance delimiters is possible
+  but rendered templates will not be cached, assuming,
+  custom delimiters are used for preparations.
+- non-escaping by default, escaper function or a flag must be specified explicitly.
+- no `{{{trippleStashes}}}`, this may be set with `&` variable tag.
+- template recursions are disabled by default.
 </details>
 <details>
-<summary>else section</summary>
+<summary>else |</summary>
 
 Else sections `|` may be used inside both if `#` and if not `^` blocks:
 ```
