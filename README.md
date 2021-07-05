@@ -48,12 +48,22 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128).
 
 ## syntax extentions
 <details>
-<summary>`|` else block</summary>
+<summary>else section</summary>
 
-may be used with both `if` and `if not` blocks
+Else sections `|` may be used inside both if `#` and if not `^` blocks:
 ```
 {{#block}} yes {{|}} no {{/block}}
 {{^block}} no {{|}} yes {{/block}}
+```
+block is `falsy` =>
+```
+ no 
+ no 
+```
+block is `truthy` =>
+```
+ yes 
+ yes 
 ```
 </details>
 
