@@ -55,19 +55,19 @@ Else sections `|` may be used inside both if `#` and if not `^` blocks:
 {{#block}} yes {{|}} no {{/block}}
 {{^block}} no {{|}} yes {{/block}}
 ```
-block is `falsy` =>
+block is `falsy`:
 ```
  no 
  no 
 ```
-block is `truthy` =>
+block is `truthy`:
 ```
  yes 
  yes 
 ```
 </details>
 
-## usage examples
+## examples
 <details>
 <summary>include</summary>
 
