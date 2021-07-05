@@ -8,11 +8,8 @@ class MustacheEngine {
   const DELIMS  = '{}[]()<>:%=~-_?*@!|';# valid delimiter chars
   private static
     $DELIMS_EXP = '/^([_]{2,4})(\s+)([_]{2,4})$/',
-    # evaluated chunks of code
+    # evaluated template function code
     $E_READY    = false,# initialized
-    $E_IF       = '{$x->f(%s,%s,0)}',
-    $E_IF_NOT   = '{$x->f(%s,%s,1)}',
-    $E_VAR      = '{$x(%s)}',
     $E_TEMPLATE = '
 
 function($x) { #%s,depth=%s
@@ -30,7 +27,9 @@ TEMPLATE;
     # initialize config (assumed correct)
     isset($o[$k = 'helpers']) && ($this->helpers = $o[$k]);
     isset($o[$k = 'logger'])  && ($this->logger  = $o[$k]);
-    isset($o[$k = 'escaper']) && ($this->escaper = $o[$k]);
+    if (isset($o[$k = 'escaper']) && ($k = $o[$k])) {
+      $this->escaper = is_callable($k) ? $k : true;
+    }
     isset($o[$k = 'recur'])   && ($this->recur   = $o[$k]);
     # set delimiters
     $i = ['{{',' ','}}'];# default
@@ -140,10 +139,11 @@ TEMPLATE;
       $k = null;
     }
     # create parse tree
-    if (!$tree)
+    if ($tree === null)
     {
-      $tree = $this->tokenize($delims, $text);
-      if (!$tree = $this->parse($text, $tree)) {
+      $tree = &$this->tokenize($delims, $text);
+      $tree = &$this->parse($text, $tree);
+      if ($tree === null) {
         return -1;
       }
     }
@@ -215,20 +215,20 @@ TEMPLATE;
     return false;
   }
   # }}}
-  function tokenize($delims, &$text) # {{{
+  function &tokenize($delims, &$text) # {{{
   {
     # prepare
-    $tokens = [];# [<type>,<name>,<line>,<indent>,<index>]
+    $tokens = [];
     $size0  = strlen($delims[0]);
     $size1  = strlen($delims[2]);
     $length = strlen($text);
-    $i = $j = $line = 0;
+    $i = $i0 = $i1 = $line = 0;
     # iterate
-    while ($i < $length)
+    while ($i0 < $length)
     {
       # search both newline and tag opening
-      $a = strpos($text, "\n", $i);
-      $b = strpos($text, $delims[0], $i);
+      $a = strpos($text, "\n", $i0);
+      $b = strpos($text, $delims[0], $i0);
       # check no more tags left
       if ($b === false)
       {
@@ -236,35 +236,29 @@ TEMPLATE;
         # add next text chunk spearately
         if ($a !== false)
         {
-          $tokens[$j++] = [
-            '', substr($text, $i, $a - $i + 1),
-            $line++, -1
-          ];
-          $i = $a + 1;# move to the char after newline
+          $tokens[$i++] = ['',substr($text, $i0, $a - $i0 + 1),$line++];
+          $i0 = $a + 1;# move to the char after newline
         }
         # add last text chunk as a whole and complete
-        $tokens[$j++] = ['', substr($text, $i), $line, -1];
+        $tokens[$i++] = ['',substr($text, $i0),$line];
         break;
       }
-      # accumulate text lines
+      # accumulate text tokens
       while ($a !== false && $a < $b)
       {
-        $tokens[$j++] = [
-          '', substr($text, $i, $a - $i + 1),
-          $line++, -1
-        ];
-        $i = $a + 1;# move to the char after newline
-        $a = strpos($text, "\n", $i);
+        $i1 = $a + 1;# move to the char after newline
+        $tokens[$i++] = ['',substr($text, $i0, $i1 - $i0),$line++];
+        $a = strpos($text, "\n", $i0 = $i1);
       }
       # check something left before the opening
-      if ($i < $b)
+      if ($i0 < $b)
       {
-        # add last text token
-        $a = substr($text, $i, $b - $i);
-        $i = $b;
-        $tokens[$j++] = ['', $a, $line, -1];
-        # check it's an indentation and determine it's size
-        $indent = (trim($a, " \t") ? -1 : strlen($a));
+        # add last text token (at the same line)
+        $c = substr($text, $i0, $b - $i0);
+        $tokens[$i++] = ['',$c,$line];
+        # determine indentation size
+        $indent = (trim($c, " \t") ? -1 : strlen($c));
+        $i0 = $b;
       }
       else {# opening at newline
         $indent = 0;
@@ -275,60 +269,68 @@ TEMPLATE;
       $b += $size0;# shift to the tag name
       if (($a = strpos($text, $delims[2], $b)) === false ||
           !($c = trim(substr($text, $b, $a - $b), ' ')) ||
-          (!ctype_alnum($c[0]) && strpos('#^/.&!', $c[0]) === false) ||
+          (!ctype_alnum($c[0]) && strpos('#^|/.&!', $c[0]) === false) ||
           (strlen($c) > self::NAME_SZ && $c[0] !== '!'))
       {
         # report as problematic but acceptable (not an error)
         $this->log('false tag skipped', 0);
         # check newline
-        if ($j && !$tokens[$j - 1][0] &&
-            substr($tokens[$j - 1][1], -1) === "\n")
+        if ($i && !$tokens[$i - 1][0] &&
+            substr($tokens[$i - 1][1], -1) === "\n")
         {
           ++$line;
         }
-        # add false opening as a text token and restart
-        $tokens[$j++] = ['', $delims[0], $line, -1];
+        # add false opening as a text token (at the same line)
+        $tokens[$i++] = ['',$delims[0],$line];
         # continue after the false opening
-        $i = $b;
+        $i0 = $b;
         continue;
       }
-      # add token
+      # determine position of the next char after the closing delimiter
+      $i1 = $a + $size1;
+      # add syntax token
+      # [<0:type>,<1:name>,<2:line>,<3:indent>,<4:index0>,<5:index1>]
       switch ($c[0]) {
       case '#':
       case '^':
-        # block start
-        $tokens[$j++] = [$c[0], ltrim(substr($c, 1)), $line, $indent, $a + $size1];
+        # if / if not block
+        $tokens[$i++] = [$c[0],ltrim(substr($c, 1), ' '),$line,$indent,$i1];
+        break;
+      case '|':
+        # else block
+        $tokens[$i++] = ['|',ltrim(substr($c, 1), ' '),$line,$indent,$i0,$i1];
         break;
       case '/':
-        # block end
-        $tokens[$j++] = ['/', ltrim(substr($c, 1)), $line, $indent, $i];
+        # end of the block
+        $tokens[$i++] = ['/',ltrim(substr($c, 1), ' '),$line,$indent,$i0];
         break;
       case '!':
         # comment
-        $tokens[$j++] = ['!', '', $line, $indent];
+        $tokens[$i++] = ['!','',$line,$indent];
         break;
       case '&':
         # tagged variable
-        $c = $c[0].ltrim(substr($c, 1));
+        $c = $c[0].ltrim(substr($c, 1), ' ');
         # fallthrough..
       default:
         # variable
-        $tokens[$j++] = ['_', $c, $line, $indent];
+        $tokens[$i++] = ['_',$c,$line,$indent];
         break;
       }
-      # shift to the next char after the closing delimiter
-      $i = $a + $size1;
+      # continue
+      $i0 = $i1;
     }
     # tokens collected,
     # clear standalone blocks
     # {{{
     # prepare
     $line = $size0 = $size1 = 0;
+    $length = $i;
     # iterate
-    for ($i = 0; $i <= $j; ++$i)
+    for ($i = 0; $i <= $length; ++$i)
     {
       # check on the same line
-      if ($i < $j && $line === $tokens[$i][2]) {
+      if ($i < $length && $line === $tokens[$i][2]) {
         ++$size0;# total tokens in a line
       }
       else
@@ -351,7 +353,7 @@ TEMPLATE;
             {
               $tokens[$b][1] = '';
             }
-            elseif ($i === $j && !$tokens[$a][0] &&
+            elseif ($i === $length && !$tokens[$a][0] &&
                     ctype_space($tokens[$a][1]))
             {
               $tokens[$a][1] = '';
@@ -371,7 +373,7 @@ TEMPLATE;
           }
         }
         # check the end
-        if ($i === $j) {
+        if ($i === $length) {
           break;
         }
         # change line and reset counters
@@ -380,55 +382,78 @@ TEMPLATE;
         $size1 = 0;
       }
       # count blocks
-      if (($a = $tokens[$i][0]) && strpos('#^/!', $a) !== false) {
+      if (($a = $tokens[$i][0]) && strpos('#^|/!', $a) !== false) {
         ++$size1;
       }
     }
     # }}}
     # complete
+    $tokens[] = null;
     return $tokens;
   }
   # }}}
-  function parse(&$text, &$tokens, &$p = null) # {{{
+  function &parse(&$text, &$tokens, &$i = 0, &$p = null) # {{{
   {
-    # construct syntax tree
-    $tree = [];# [0:<type>,1:<name>,2:<line>,3:<indent>,4:<text>,5:<children>]
-    while ($tokens)
+    # node:[<0:type>,<1:name>,<2:line>,<3:indent>,<4:size>,<5:[list]>]
+    # list:[<0:raw_text>,<1:tree>,..]
+    # assemble syntax tree
+    $from = ($p === null) ? -1 : $p[4];
+    $tree = [];
+    $size = 0;
+    while ($t = &$tokens[$i++])
     {
-      # extract next token
-      $t = array_shift($tokens);
-      # check
       switch ($t[0]) {
-      case '':
-      case '_':
-      case '.':
-        $tree[] = $t;
-        break;
       case '#':
       case '^':
-        # recurse
-        if (!($t = $this->parse($text, $tokens, $t))) {
+        # add a block
+        $t[5] = [];
+        if (!$this->parse($text, $tokens, $i, $t)) {
           return null;# something went wrong
         }
-        $tree[] = $t;
+        elseif ($t[4]) {# non-empty
+          $tree[$size++] = &$t;
+        }
         break;
-      case '/':
-        # check
-        if (!isset($p) || $t[1] !== $p[1])
+      case '|':
+        # add a section
+        if ($p === null)
         {
-          $this->log('unexpected closing tag: '.$t[1].' at line '.$t[2], 1);
+          $this->log('unexpected else: '.$t[1].' at line '.$t[2], 1);
           return null;
         }
-        # block assembled
-        $p[4] = substr($text, $p[4], $t[4] - $p[4]);
-        $p[5] = $tree;
+        $p[5][] = substr($text, $from, $t[4] - $from);
+        $p[5][] = $tree;
+        $from   = $t[5];
+        $tree   = [];
+        $size   = 0;
+        break;
+      case '/':
+        # add last section
+        if ($p === null || $t[1] !== $p[1])
+        {
+          $this->log('unexpected close: '.$t[1].' at line '.$t[2], 1);
+          return null;
+        }
+        if ($size)
+        {
+          $p[5][] = substr($text, $from, $t[4] - $from);
+          $p[5][] = &$tree;
+          $p[4]   = count($p[5]);
+        }
+        else {
+          $p[4] = 0;
+        }
         return $p;
+      default:
+        # add text/variable (non-empty)
+        $t[1] && ($tree[$size++] = &$t);
+        break;
       }
     }
     # check
-    if (isset($p))
+    if ($p !== null)
     {
-      $this->log('missing closing tag: '.$p[1].' at line '.$p[2], 1);
+      $this->log('missing close: '.$p[1].' at line '.$p[2], 1);
       return null;
     }
     return $tree;
@@ -437,7 +462,7 @@ TEMPLATE;
   function compose($delims, &$tree, $depth) # {{{
   {
     $code = '';
-    foreach ($tree as $t)
+    foreach ($tree as &$t)
     {
       switch ($t[0]) {
       case '':
@@ -453,29 +478,27 @@ TEMPLATE;
         break;
       case '_':
         # variable
-        $code .= sprintf(self::$E_VAR, "'".$t[1]."'");
+        $code .= '{$x(\''.$t[1].'\')}';
         break;
       case '#':
-      case '^':
-        # block
-        if ($t[4])
-        {
-          $code .= sprintf(
-            ($t[0] === '#' ? self::$E_IF : self::$E_IF_NOT),
-            $this->renderFunc($delims, $t[4], $t[5], $depth),
-            "'".$t[1]."'"
-          );
+        # if
+        for ($x = '', $i = 0; $i < $t[4]; $i += 2) {
+          $x .= ','.$this->renderFunc($delims, $t[5][$i], $t[5][$i + 1], $depth);
         }
+        $code .= '{$x->f(\''.$t[1].'\',0'.$x.')}';
         break;
-      case '.':
-        # iterator
-        $code .= sprintf(self::$E_VAR, "'.".$t[1]."'");
+      case '^':
+        # if not
+        for ($x = '', $i = 0; $i < $t[4]; $i += 2) {
+          $x .= ','.$this->renderFunc($delims, $t[5][$i], $t[5][$i + 1], $depth);
+        }
+        $code .= '{$x->f(\''.$t[1].'\',1'.$x.')}';
         break;
       }
     }
     # apply heredoc terminator guard and complete
-    return (strpos($code, $t = "\nTEMPLATE") !== false)
-      ? str_replace($t, '{$x}', $code)
+    return (strpos($code, $x = "\nTEMPLATE") !== false)
+      ? str_replace($x, '{$x}', $code)
       : $code;
   }
   # }}}
@@ -504,11 +527,15 @@ class MustacheContext # {{{
     # variable {{{
     # strip name tag
     ($tag = ($name[0] === '&')) && ($name = substr($name, 1));
-    # resolve name to value
-    if (!($v = $this->v($name)) && $v !== 0) {
-      return '';# falsy, but not 0
+    # resolve value
+    $v = ($name === '.')
+      ? $this->stack[$this->last]# implicit iterator
+      : $this->v($name);# named
+    # handle falsy
+    if (!$v) {
+      return $v === 0 ? '0' : '';
     }
-    # invoke function
+    # handle function
     if ($isFunc = is_callable($v)) {
       $v = ($v instanceof MustacheWrap) ? $v('') : call_user_func($v, '');
     }
@@ -527,7 +554,7 @@ class MustacheContext # {{{
       elseif (!$tag && ($f = $this->engine->escaper))
       {
         # escape characters
-        $v = is_callable($f) ? $f($v) : htmlspecialchars($v);
+        $v = ($f === true) ? htmlspecialchars($v) : $f($v);
       }
       return $v;
     }
@@ -537,22 +564,31 @@ class MustacheContext # {{{
     return '';
     # }}}
   }
-  function f($i, $name, $inverted)
+  function f($name, $inverted, ...$i)
   {
     # block {{{
-    # resolve name to value
-    if (!($v = $this->v($name)))
+    # resolve value
+    $k = count($i) === 1;
+    $v = ($name === '.')
+      ? $this->stack[$this->last]# implicit iterator
+      : $this->v($name);# named
+    # check
+    if (!$v)
     {
-      # handle falsy (not found or empty string/array, 0, null, false)
-      return $inverted
-        ? $this->engine->func[$i]($this)
-        : '';
+      # handle falsy (not found, empty string/array, 0, null, false)
+      return $k
+        ? ($inverted # simple
+          ? $this->engine->func[$i[0]]($this)
+          : '')
+        : ($inverted # sectioned
+          ? $this->engine->func[$i[0]]($this)
+          : $this->engine->func[$i[1]]($this));
     }
     elseif (is_callable($v))
     {
       # handle lambda block
       # get raw block contents and invoke function
-      $x = $this->engine->text[$i];
+      $x = $this->engine->text[$i[0]];
       $v = ($v instanceof MustacheWrap)
         ? $v($x) # wrapped object method
         : call_user_func($v, $x); # callable
@@ -560,12 +596,16 @@ class MustacheContext # {{{
       if (!$v)
       {
         # handle falsy
-        return $inverted
-          ? $this->engine->func[$i]($this)
-          : '';
+        return $k
+          ? ($inverted # simple
+            ? $this->engine->func[$i[0]]($this)
+            : '')
+          : ($inverted # sectioned
+            ? $this->engine->func[$i[0]]($this)
+            : $this->engine->func[$i[1]]($this));
       }
-      elseif ($inverted) {
-        return '';# handle truthy inverted
+      elseif ($inverted) {# handle truthy inverted
+        return $k ? '' : $this->engine->func[$i[1]]($this);
       }
       elseif (is_string($v))
       {
@@ -582,8 +622,8 @@ class MustacheContext # {{{
       }
       # fallthrough..
     }
-    elseif ($inverted) {
-      return '';# handle truthy inverted
+    elseif ($inverted) {# handle truthy inverted
+      return $k ? '' : $this->engine->func[$i[1]]($this);
     }
     # handle standard block
     # check iterable
@@ -597,7 +637,7 @@ class MustacheContext # {{{
       foreach ($v as &$w)
       {
         $this->stack[++$this->last] = &$w;
-        $x .= $this->engine->func[$i]($this);
+        $x .= $this->engine->func[$i[0]]($this);
         $this->last--;
       }
     }
@@ -605,7 +645,7 @@ class MustacheContext # {{{
     {
       # context expansion
       $this->stack[++$this->last] = &$v;
-      $x = $this->engine->func[$i]($this);
+      $x = $this->engine->func[$i[0]]($this);
       $this->last--;
     }
     # done
@@ -615,10 +655,6 @@ class MustacheContext # {{{
   private function v($name)
   {
     # name resolution {{{
-    # resolve implicit iterator
-    if ($name === '.') {
-      return $this->stack[$this->last];
-    }
     # prepare
     if (strpos($name, '.') === false) {
       $dots = null;

@@ -1,25 +1,32 @@
 <?php
 require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
 # {{{
-if (0) # tokenizer
+if (0) # tokenizer/parser
 {
   $m = new \SM\MustacheEngine([
     'logger' => Closure::fromCallable('logit'),
   ]);
   $a = '
 
-
-    {{^block}} {{#puke}}
-      is truthy
-    {|}
-      is falsy
-    {{/puke}}{{/block}}
+    {{#block}}
+      yes, {{name}}
+    {{|}}
+      no, {{name}}
+    {{/block}}
 
   ';
-  $b = $m->tokenize(['{{','}}',' '], $a);
-  $b = $m->parse($a, $b);
+  #$b = $m->tokenize(['{{',' ','}}'], $a);
+  #$c = $m->parse($a, $b);
+  #$d = $m->compose(['{{',' ','}}'], $c, 0);
+  $b = [
+    'name'=>'David',
+    'block'=>0,
+  ];
+  $c = $m->render($a, $b);
   var_export($a);
   var_export($b);
+  var_export($c);
+  exit;
   if ($b && 0)
   {
     echo "========\n";

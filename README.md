@@ -1,5 +1,5 @@
 [![logo](https://raw.githack.com/determin1st/sm-mustache/master/tests/logo.jpg)](https://youtu.be/mQ_AdzWE5Ec)
-[mustache](https://mustache.github.io/) templates **eval**uator ([prototyped](https://github.com/bobthecow/mustache.php))
+[mustache](https://mustache.github.io/) templates **eval**uator ([prototype](https://github.com/bobthecow/mustache.php))
 
 ## requirements
 - [PHP](https://www.php.net/) 7.4+
@@ -46,6 +46,16 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128).
   may be enabled explicitly.
 </details>
 
+## syntax extentions
+<details>
+<summary>`|` else block</summary>
+
+may be used with both `if` and `if not` blocks
+```
+{{#block}} yes {{|}} no {{/block}}
+{{^block}} no {{|}} yes {{/block}}
+```
+</details>
 
 ## usage examples
 <details>
@@ -119,8 +129,6 @@ todo
   <summary>later</summary>
 
 
-# syntax extentions
-## else block
 ## block operators `==`, `>`, `<`, `>=`, `<=`
 ## block reindentation
 
