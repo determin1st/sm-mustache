@@ -30,8 +30,10 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128).
 [![sections](https://raw.githack.com/determin1st/sm-mustache/master/tests/sections.jpg)](https://github.com/determin1st/sm-mustache#tests)
 ---
 </details>
+
+## syntax
 <details>
-<summary>deviations</summary>
+<summary>spec deviations</summary>
 
 - no `<` template parent, inheritance.
 - no `>` template partials, inheritance.
@@ -45,8 +47,6 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128).
   which may return a new template string (contains current delimiters).
   may be enabled explicitly.
 </details>
-
-## syntax extentions
 <details>
 <summary>else section</summary>
 
