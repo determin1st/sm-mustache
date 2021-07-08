@@ -53,12 +53,12 @@ Else sections `|` may be used inside both if `#` and if not `^` blocks:
 {{#block}} yes {{|}} no {{/block}}
 {{^block}} no {{|}} yes {{/block}}
 ```
-block is `falsy`:
+block resolves `falsy`:
 ```
  no 
  no 
 ```
-block is `truthy`:
+block resolves `truthy`:
 ```
  yes 
  yes 
