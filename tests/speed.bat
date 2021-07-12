@@ -1,4 +1,5 @@
 @echo off
+::set PHP="E:\lab\www\xampp\php\php.exe"
 set PHP="E:\lab\www\php\php.exe"
 %PHP% -f "%CD%\speed.php" -- 0 %1
 %PHP% -f "%CD%\speed.php" -- 1 %1

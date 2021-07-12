@@ -57,7 +57,7 @@ $t = -hrtime(true);
 if ($test)
 {
   require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
-  $m = new \SM\MustacheEngine([
+  $m = \SM\Mustache::init([
     'escaper' => true,
     'recur'   => true,
   ]);

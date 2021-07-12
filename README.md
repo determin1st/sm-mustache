@@ -2,7 +2,7 @@
 [mustache](https://mustache.github.io/) templates **eval**uator ([prototype](https://github.com/bobthecow/mustache.php))
 
 ## requirements
-- [PHP](https://www.php.net/) 7.4+
+- [PHP](https://www.php.net/) 8+
 
 ## tests (2021-06)
 <details>
@@ -11,9 +11,7 @@
 test loops over mustache spec files (except lambdas), fails are skipped and counted.
 [mustache.js](https://github.com/janl/mustache.js) fails in one test: [issue](https://github.com/janl/mustache.js/issues/65)
 [![vs](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed.jpg)](https://github.com/determin1st/sm-mustache#tests)
-:point_up: PHPv7.4.5, NODEv10.14.2
-[![vs2](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed2.jpg)](https://github.com/determin1st/sm-mustache#tests)
-:point_up: PHPv8.0.7 with OPcache and JIT enabled
+:point_up: PHPv8.0.7 with JIT, NODEv10.14.2
 ---
 </details>
 <details>
@@ -79,19 +77,19 @@ require_once __DIR__.DIRECTORY_SEPARATOR.'.inc.'.DIRECTORY_SEPARATOR.'mustache.p
 
 ```php
 # defaults
-$tp = new \SM\MustacheEngine([
+$tp = \SM\Mustache::init([
   'delims'  => '{{ }}',
-  'helpers' => null,  # context fallbacks array/object
   'logger'  => null,  # callable, for debug logs
-  'escaper' => null,  # callable, variables escaper (or truthy for HTML escaping)
+  'helpers' => null,  # context fallbacks array/object
+  'escaper' => false, # callable, variables escaper (or truthy for HTML escaping)
   'recur'   => false, # template recursion flag
 ]);
 
 # same (defaults)
-$tp = new \SM\MustacheEngine();
+$tp = \SM\Mustache::init();
 
 # mustache spec compatible
-$mp = new \SM\MustacheEngine([
+$mp = \SM\Mustache::init([
   'escaper' => true,  # htmlspecialchars($variable)
   'recur'   => true,  # checks function result for delimiters and re-renders
 ]);
@@ -109,7 +107,7 @@ $mp = new \SM\MustacheEngine([
 
 
 ## call syntax
-#### `$tp = new \SM\MustacheEngline($options);`
+#### `$tp = \SM\Mustache::init($options);`
 <details>
 <summary>parameters</summary>
 
