@@ -77,7 +77,7 @@ require_once __DIR__.DIRECTORY_SEPARATOR.'.inc.'.DIRECTORY_SEPARATOR.'mustache.p
 
 ```php
 # defaults
-$tp = \SM\Mustache::init([
+$tp = \SM\Mustache::construct([
   'delims'  => '{{ }}',
   'logger'  => null,  # callable, for debug logs
   'helpers' => null,  # context fallbacks array/object
@@ -86,10 +86,10 @@ $tp = \SM\Mustache::init([
 ]);
 
 # same (defaults)
-$tp = \SM\Mustache::init();
+$tp = \SM\Mustache::construct();
 
 # mustache spec compatible
-$mp = \SM\Mustache::init([
+$mp = \SM\Mustache::construct([
   'escaper' => true,  # htmlspecialchars($variable)
   'recur'   => true,  # checks function result for delimiters and re-renders
 ]);
@@ -107,7 +107,7 @@ $mp = \SM\Mustache::init([
 
 
 ## call syntax
-#### `$tp = \SM\Mustache::init($options);`
+#### `$tp = \SM\Mustache::construct($options);`
 <details>
 <summary>parameters</summary>
 

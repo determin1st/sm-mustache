@@ -3,7 +3,7 @@ require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
 # {{{
 if (0) # tokenizer/parser
 {
-  $m = \SM\Mustache::init([
+  $m = \SM\Mustache::construct([
     'logger' => Closure::fromCallable('logit'),
   ]);
   $a = '
@@ -40,7 +40,7 @@ if (0) # tokenizer/parser
 }
 if (0) # renderer
 {
-  $m = \SM\Mustache::init([
+  $m = \SM\Mustache::construct([
     'logger' => Closure::fromCallable('logit'),
   ]);
   $a = '
@@ -123,7 +123,7 @@ foreach ($file as $i)
 logit("selected: ".implode('/', array_keys($json))."\n");
 # }}}
 # run {{{
-$m = \SM\Mustache::init([
+$m = \SM\Mustache::construct([
   'logger'  => ~$test ? Closure::fromCallable('logit') : null,
   #'logger'  => Closure::fromCallable('logit'),
   'escaper' => true,

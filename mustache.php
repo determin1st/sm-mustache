@@ -1,16 +1,21 @@
 <?php
 declare(strict_types=1);
 namespace SM;
+use function # {{{
+  is_callable,is_object,is_array,is_int,is_string,is_numeric,
+  method_exists,array_key_exists,ctype_alnum,ctype_space,
+  preg_quote,preg_match,str_replace,trim,ltrim,strlen,strpos,substr,
+  hash,sprintf,ord,htmlspecialchars,call_user_func,
+  key,count,explode,array_shift,array_pop;
+# }}}
 class Mustache {
   # {{{
   const SPEC      = '1.1.2';
   const NAME_SIZE = 32;# max {{name}} size (without delimiters/spacing)
   const CACHE_MAX = 1000;# max number of cached templates
   const DELIMS    = '{}[]()<>:%=~-_?*@!|';# valid delimiter chars
-  static
-    $INIT = true,
-    $DELIMS_EXP = '/^([_]{2,4})(\s+)([_]{2,4})$/',
-    $TEMPLATE = '
+  static $DELIMS_EXP = '/^([_]{2,4})(\s+)([_]{2,4})$/';
+  static $TEMPLATE = '
 
 function(object $x):string { #%s,depth=%s
 return <<<TEMPLATE
@@ -18,18 +23,17 @@ return <<<TEMPLATE
 TEMPLATE;
 }
 
-    ';
-  ###
-  static function init(array $o = []): ?self
+  ';
+  # }}}
+  static function construct(array $o = []): ?self # {{{
   {
     # initialize static once
-    if (self::$INIT)
+    if (self::$TEMPLATE[0] !== 'f')
     {
-      self::$INIT = false;
       self::$DELIMS_EXP = str_replace('_', preg_quote(self::DELIMS), self::$DELIMS_EXP);
       self::$TEMPLATE = str_replace("\r", "", trim(self::$TEMPLATE));
     }
-    # prepare
+    # parse options
     $a = isset($o[$k = 'logger'])
       ? $o[$k]
       : null;
@@ -39,48 +43,50 @@ TEMPLATE;
     $c = isset($o[$k = 'escaper'])
       ? (is_callable($o[$k]) ? $o[$k] : !!$o[$k])
       : false;
-    # parse and check delimiters
-    if (($b = self::parseDelims($b)) === null)
+    # parse delimiters
+    if (!($b = self::parseDelims($b)))
     {
       is_callable($a) && $a('incorrect delimiters', 1);
       return null;
     }
     # construct
-    return new static(
+    return new self(
       $a,$b,$c,
       (isset($o[$k = 'helpers']) ? $o[$k] : null),
       (isset($o[$k = 'recur']) ? $o[$k] : false)
     );
   }
-  private function __construct(
-    public object|null $logger,
-    public object $delims,
-    public bool|object $escaper,
-    public null|array|object $helpers,
-    public bool $recur,
+  public $cache,$hash,$text,$func,$total = 0;
+  function __construct(
+    public $logger,
+    public $delims,
+    public $escaper,
+    public $helpers,
+    public $recur
   )
   {
     $this->cache = new \SplFixedArray(65536);# root (~4mb)
     $this->hash  = new \SplFixedArray(self::CACHE_MAX);
     $this->text  = new \SplFixedArray(self::CACHE_MAX);
     $this->func  = new \SplFixedArray(self::CACHE_MAX);
-    $this->total = 0;
   }
-  static function parseDelims(string $text): ?object
+  # }}}
+  static function parseDelims(string $text): ?object # {{{
   {
-    $x = null;
     return preg_match(self::$DELIMS_EXP, $text, $x)
       ? \SplFixedArray::fromArray([$x[1],$x[3]])
       : null;
   }
-  function log(string $text, int $level = 0): void {
+  # }}}
+  function log(string $text, int $level = 0): void # {{{
+  {
     ($log = $this->logger) && $log($text, $level);
   }
   # }}}
   function render(# {{{
-    string &$text,
-    string|array $p1,
-    ?array $p2 = null
+    string        $text,
+    string|array  $p1,
+    ?array        $p2 = null
   ):string
   {
     # check
@@ -96,30 +102,30 @@ TEMPLATE;
     else
     {
       # delimiters and context
-      if (!is_string($p1) || ($p1 = self::parseDelims($p1)) === null)
+      if (!is_string($p1) || !($p1 = self::parseDelims($p1)))
       {
         $this->log('incorrect delimiters', 1);
         return $text;
       }
     }
-    # check rendering needed
+    # check open delimiter present
     if (strpos($text, $p1[0]) === false) {
       return $text;
     }
-    # check current total
+    # check overflow
     if (($n = $this->total) >= self::CACHE_MAX)
     {
       $this->log('cache overflow', 1);
       return $text;
     }
     # create template function and
-    # execute it within the context
+    # execute it within context
     $i = $this->renderFunc($p1, $text);
-    $x = ~$i ? $this->func[$i](MustacheContext::init($this, $p1, $p2)) : '';
-    # check cache updated
+    $x = ~$i ? $this->func[$i](MustacheContext::construct($this, $p1, $p2)) : '';
+    # check failed or non-standard delimiters specified
     if ($i === -1 || $p1 !== $this->delims)
     {
-      # nope, cleanup
+      # revert cache to the previous state
       for ($i = $this->total - 1; $i >= $n; --$i)
       {
         $this->text[$i] = null;
@@ -128,15 +134,15 @@ TEMPLATE;
       }
       $this->total = $n;
     }
-    # complete
+    # done
     return $x;
   }
   # }}}
   function renderFunc(# {{{
-    object $delims,
-    string &$text,
-    ?array &$tree = null,
-    int $depth = -1
+    object  $delims,
+    string  &$text,
+    ?array  &$tree = null,
+    int     $depth = -1
   ):int
   {
     # check delimiters are default
@@ -409,10 +415,10 @@ TEMPLATE;
   }
   # }}}
   function &parse(# {{{
-    string &$text,
-    array &$tokens,
-    int &$i = 0,
-    ?array &$p = null
+    string  &$text,
+    array   &$tokens,
+    int     &$i = 0,
+    ?array  &$p = null
   ):array
   {
     # node:[<0:type>,<1:name>,<2:line>,<3:indent>,<4:size>,<5:[list]>]
@@ -481,9 +487,9 @@ TEMPLATE;
   }
   # }}}
   function compose(# {{{
-    object $delims,
-    array &$tree,
-    int $depth
+    object  $delims,
+    array   &$tree,
+    int     $depth
   ):string
   {
     $code = '';
@@ -530,7 +536,7 @@ TEMPLATE;
 }
 class MustacheContext # {{{
 {
-  static function init(object $engine, object $delims, array|string &$context): self
+  static function construct(object $engine, object $delims, array|string &$context): self
   {
     $stack = [null,null];
     if ($engine->helpers && $delims === $engine->delims) {
@@ -539,13 +545,13 @@ class MustacheContext # {{{
     if ($context) {
       $stack[1] = &$context;
     }
-    return new static($engine, $delims, $stack);
+    return new self($engine, $delims, $stack);
   }
-  private function __construct(
+  function __construct(
     public object $engine,
     public object $delims,
-    public array $stack,
-    public int $last = 1
+    public array  $stack,
+    public int    $last = 1
   ) {}
   function __toString() {
     return "\nTEMPLATE";# terminator guard
@@ -565,7 +571,7 @@ class MustacheContext # {{{
     }
     # handle function
     if ($isFunc = is_callable($v)) {
-      $v = ($v instanceof MustacheWrap) ? $v('') : call_user_func($v, '');
+      $v = ($v instanceof \Closure) ? $v('') : call_user_func($v, '');
     }
     # check proper type
     if (is_string($v))
@@ -617,7 +623,7 @@ class MustacheContext # {{{
       # handle lambda block
       # get raw block contents and invoke function
       $x = $this->engine->text[$i[0]];
-      $v = ($v instanceof MustacheWrap)
+      $v = ($v instanceof \Closure)
         ? $v($x) # wrapped object method
         : call_user_func($v, $x); # callable
       # check result type
@@ -658,7 +664,7 @@ class MustacheContext # {{{
     # - array must have all keys numeric (assumed all or none)
     # - object must be traversable
     if ((($x = is_array($v)) && is_int(key($v))) ||
-        (!$x && is_object($v) && ($v instanceof Traversable)))
+        (!$x && is_object($v) && ($v instanceof \Traversable)))
     {
       # implicit iterator
       $x = '';
@@ -722,7 +728,7 @@ class MustacheContext # {{{
           {
             # wrap the last name's function and complete
             if (!$dots) {
-              return new MustacheWrap($x, $name);
+              return \Closure::fromCallable([$x, $name]);
             }
             # otherwise, use the call result for the further traversal
             $v = &$x->$name();
@@ -780,24 +786,11 @@ class MustacheContext # {{{
         return $v->$name;
       }
       if (method_exists($name, $v)) {
-        return new MustacheWrap($v, $name);
+        return \Closure::fromCallable([$v, $name]);
       }
     }
     return '';
     # }}}
-  }
-}
-# }}}
-class MustacheWrap # {{{
-{
-  function __construct(
-    public object $o,
-    public string $m
-  ) {}
-  function __invoke($v)
-  {
-    $m = $this->m;
-    return $this->o->$m($v);
   }
 }
 # }}}
