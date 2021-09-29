@@ -11,7 +11,7 @@
 test loops over mustache spec files (except lambdas), fails are skipped and counted.
 [mustache.js](https://github.com/janl/mustache.js) fails in one test: [issue](https://github.com/janl/mustache.js/issues/65)
 [![vs](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed.jpg)](https://github.com/determin1st/sm-mustache#tests)
-:point_up: PHPv8.0.7 with JIT, NODEv10.14.2
+:point_up: PHPv8.0.7 +JIT, NODEv10.14.2
 ---
 </details>
 <details>
@@ -44,7 +44,7 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128).
 - template recursions are disabled by default.
 </details>
 <details>
-<summary>else |</summary>
+<summary>if-else</summary>
 
 Else sections `|` may be used inside both if `#` and if not `^` blocks:
 ```
@@ -62,8 +62,43 @@ block resolves `truthy`:
  yes 
 ```
 </details>
+<details>
+<summary>if-switch</summary>
 
-## examples
+ta ta ta
+```
+  {{#block}}
+    truthy section
+  {{|0}}
+    zero (string)
+  {{|1}}
+    one
+  {{|2}}
+    two
+  {{|}}
+    falsy section
+  {{/block}}
+```
+</details>
+<details>
+<summary>if-not-switch</summary>
+
+ta ta ta
+```
+  {{^block}}
+  {{|0}}
+    zero
+  {{|1}}
+    one
+  {{|2}}
+    two
+  {{|}}
+    something: {{block}}
+  {{/block}}
+```
+</details>
+
+## usage
 <details>
 <summary>include</summary>
 
@@ -106,7 +141,7 @@ $mp = \SM\Mustache::construct([
 </details>
 
 
-## call syntax
+## call spec
 #### `$tp = \SM\Mustache::construct($options);`
 <details>
 <summary>parameters</summary>

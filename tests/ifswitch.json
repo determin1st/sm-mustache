@@ -1,0 +1,41 @@
+{
+  "overview": "If-Switch-Else are section tags extended\n",
+  "tests": [
+    {
+      "name": "if",
+      "desc": "Truthy section - if content rendered",
+      "data": {
+        "if": true
+      },
+      "template": "{{#if}}true{{|}}false{{/if}}",
+      "expected": "true"
+    },
+    {
+      "name": "if-else",
+      "desc": "Falsy section - else content rendered",
+      "data": {
+        "if": false
+      },
+      "template": "{{#if}}true{{|}}false{{/if}}",
+      "expected": "false"
+    },
+    {
+      "name": "if-switch",
+      "desc": "Truthy section - switch content rendered",
+      "data": {
+        "if": 1
+      },
+      "template": "{{#if}}x={{|1}}1{{|}}x=0{{/if}}",
+      "expected": "x=1"
+    },
+    {
+      "name": "if-not-switch",
+      "desc": "Falsy section - switch content rendered",
+      "data": {
+        "if": 1
+      },
+      "template": "{{^if}}{{|1}}one{{|}}default{{/if}}",
+      "expected": "onedefault"
+    }
+  ]
+}

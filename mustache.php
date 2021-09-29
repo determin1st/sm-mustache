@@ -421,18 +421,27 @@ TEMPLATE;
     ?array  &$p = null
   ):array
   {
-    # node:[<0:type>,<1:name>,<2:line>,<3:indent>,<4:size>,<5:[list]>]
-    # list:[<0:raw_text>,<1:tree>,..]
-    # assemble syntax tree
-    $from = ($p === null) ? -1 : $p[4];
+    # node:[<0:type>,<1:name>,<2:line>,<3:indent>,<4:size>,<5:[sect]>]
+    # sect:[<0:condition>,<1:text>,<2:tree>,..]
+    # prepare
+    if ($p)
+    {
+      # first section's condition is the block condition
+      $p[5][] = ($p[0] === '#') ? 1 : 0;
+      $from = $p[4];
+    }
+    else {
+      $from = -1;
+    }
     $tree = [];
     $size = 0;
+    # iterate tokens
     while ($t = &$tokens[$i++])
     {
       switch ($t[0]) {
       case '#':
       case '^':
-        # add a block
+        # block
         $t[5] = [];
         if (!$this->parse($text, $tokens, $i, $t)) {
           return null;# something went wrong
@@ -442,23 +451,26 @@ TEMPLATE;
         }
         break;
       case '|':
-        # add a section
+        # block section
         if ($p === null)
         {
-          $this->log('unexpected else: '.$t[1].' at line '.$t[2], 1);
+          $this->log('unexpected: |'.$t[1].' at line '.$t[2], 1);
           return null;
         }
         $p[5][] = substr($text, $from, $t[4] - $from);
         $p[5][] = $tree;
-        $from   = $t[5];
-        $tree   = [];
-        $size   = 0;
+        $p[5][] = strlen($t[1])
+          ? "'".$t[1]."'"
+          : abs($p[5][0] - 1);
+        $from = $t[5];
+        $tree = [];
+        $size = 0;
         break;
       case '/':
-        # add last section
+        # block terminator
         if ($p === null || $t[1] !== $p[1])
         {
-          $this->log('unexpected close: '.$t[1].' at line '.$t[2], 1);
+          $this->log('unexpected: /'.$t[1].' at line '.$t[2], 1);
           return null;
         }
         if ($size)
@@ -472,7 +484,7 @@ TEMPLATE;
         }
         return $p;
       default:
-        # add text/variable (non-empty)
+        # text/variable (non-empty)
         $t[1] && ($tree[$size++] = &$t);
         break;
       }
@@ -512,18 +524,14 @@ TEMPLATE;
         $code .= '{$x(\''.$t[1].'\')}';
         break;
       case '#':
-        # if
-        for ($x = '', $i = 0; $i < $t[4]; $i += 2) {
-          $x .= ','.$this->renderFunc($delims, $t[5][$i], $t[5][$i + 1], $depth);
-        }
-        $code .= '{$x->f(\''.$t[1].'\',0'.$x.')}';
-        break;
       case '^':
-        # if not
-        for ($x = '', $i = 0; $i < $t[4]; $i += 2) {
-          $x .= ','.$this->renderFunc($delims, $t[5][$i], $t[5][$i + 1], $depth);
+        # if / if-not / else / switch
+        for ($x = '', $i = 0; $i < $t[4]; $i += 3)
+        {
+          $x .= ','.$t[5][$i].
+                ','.$this->renderFunc($delims, $t[5][$i + 1], $t[5][$i + 2], $depth);
         }
-        $code .= '{$x->f(\''.$t[1].'\',1'.$x.')}';
+        $code .= '{$x->f(\''.$t[1]."'".$x.')}';
         break;
       }
     }
@@ -598,91 +606,119 @@ class MustacheContext # {{{
     return '';
     # }}}
   }
-  function f(string $name, int $inverted, int ...$i): string
+  #function f(string $name, int $inverted, int ...$i): string
+  function f(string $name, int|string ...$sect): string
   {
     # block {{{
+    # prepare
+    $e = $this->engine;
+    $k = count($sect);
     # resolve value
-    $k = count($i) === 1;
     $v = ($name === '.')
       ? $this->stack[$this->last]# implicit iterator
       : $this->v($name);# named
-    # check
-    if (!$v)
+    # handle falsy ('',[],0,false,null)
+    if (!$v && $v !== '0')
     {
-      # handle falsy (not found, empty string/array, 0, null, false)
-      return $k
-        ? ($inverted # simple
-          ? $this->engine->func[$i[0]]($this)
-          : '')
-        : ($inverted # sectioned
-          ? $this->engine->func[$i[0]]($this)
-          : $this->engine->func[$i[1]]($this));
-    }
-    elseif (is_callable($v))
-    {
-      # handle lambda block
-      # get raw block contents and invoke function
-      $x = $this->engine->text[$i[0]];
-      $v = ($v instanceof \Closure)
-        ? $v($x) # wrapped object method
-        : call_user_func($v, $x); # callable
-      # check result type
-      if (!$v)
+      for ($i = 0; $i < $k; $i += 2)
       {
-        # handle falsy
-        return $k
-          ? ($inverted # simple
-            ? $this->engine->func[$i[0]]($this)
-            : '')
-          : ($inverted # sectioned
-            ? $this->engine->func[$i[0]]($this)
-            : $this->engine->func[$i[1]]($this));
-      }
-      elseif ($inverted) {# handle truthy inverted
-        return $k ? '' : $this->engine->func[$i[1]]($this);
-      }
-      elseif (is_string($v))
-      {
-        # handle content substitution
-        if ($this->engine->recur &&
-            strpos($v, $this->delims[0]) !== false &&
-            strpos($v, $this->delims[1]) !== false)
-        {
-          # recurse
-          $j = $this->engine->renderFunc($this->delims, $v);
-          $v = ~$j ? $this->engine->func[$j]($this) : '';
+        if ($sect[$i] === 0) {
+          return $e->func[$sect[$i + 1]]($this);
         }
-        return $v;
+      }
+      return '';
+    }
+    # handle lambda block
+    if (is_callable($v))
+    {
+      # invoke handler
+      $v = ($k === 2)
+        ? call_user_func($v, $e->text[$sect[1]])
+        : call_user_func($v);
+      # handle falsy result
+      if (!$v && $v !== '0')
+      {
+        for ($i = 0; $i < $k; $i += 2)
+        {
+          if ($sect[$i] === 0) {
+            return $e->func[$sect[$i + 1]]($this);
+          }
+        }
+        return '';
+      }
+      # handle single sectioned block
+      if ($k === 2)
+      {
+        # handle inverted block
+        if (!$sect[0]) {
+          return '';
+        }
+        # handle block content substitution
+        if (is_string($v))
+        {
+          # check recursion enabled and feasible
+          if (!$e->recur ||
+              strpos($v, $this->delims[0]) === false ||
+              strpos($v, $this->delims[1]) === false)
+          {
+            return $v;
+          }
+          # recurse
+          return ~($i = $e->renderFunc($this->delims, $v))
+            ? $e->func[$i]($this)
+            : '';
+        }
       }
       # fallthrough..
     }
-    elseif ($inverted) {# handle truthy inverted
-      return $k ? '' : $this->engine->func[$i[1]]($this);
+    elseif ($k === 2 && !$sect[0]) {
+      return '';# single sectioned, inverted block
     }
-    # handle standard block
-    # check iterable
-    # - array must have all keys numeric (assumed all or none)
+    # check value is iterable
+    # - array must have numeric keys (assumed all or none)
     # - object must be traversable
     if ((($x = is_array($v)) && is_int(key($v))) ||
         (!$x && is_object($v) && ($v instanceof \Traversable)))
     {
-      # implicit iterator
-      $x = '';
-      foreach ($v as &$w)
+      # get truthy section
+      for ($i = 0; $i < $k; $i += 2)
       {
-        $this->stack[++$this->last] = &$w;
-        $x .= $this->engine->func[$i[0]]($this);
+        if ($sect[$i] === 1)
+        {
+          $sect = $e->func[$sect[$i + 1]];
+          break;
+        }
+      }
+      # iterate, render and accumulate result
+      $x = '';
+      foreach ($v as &$i)
+      {
+        $this->stack[++$this->last] = &$i;
+        $x .= $sect($this);
         $this->last--;
       }
     }
     else
     {
-      # context expansion
+      # expand context
       $this->stack[++$this->last] = &$v;
-      $x = $this->engine->func[$i[0]]($this);
+      # render
+      for ($x = '', $i = 0; $i < $k; $i += 2)
+      {
+        if ($sect[$i] === 0) {# skip falsy
+        }
+        elseif ($sect[$i] === 1) {# truthy section
+          $x .= $e->func[$sect[$i + 1]]($this);
+        }
+        elseif ($sect[$i] === "$v") {# switch section
+          $x .= $e->func[$sect[$i + 1]]($this);
+        }
+      }
+      # collapse context
       $this->last--;
     }
-    # done
+    # cleanup and complete
+    unset($v, $i);
     return $x;
     # }}}
   }

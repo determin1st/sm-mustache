@@ -1,7 +1,7 @@
 <?php
 require __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'mustache.php';
 # {{{
-if (0) # tokenizer/parser
+if (0) # tokenizer/parser/composer/renderer tests
 {
   $m = \SM\Mustache::construct([
     'logger' => Closure::fromCallable('logit'),
@@ -15,63 +15,32 @@ if (0) # tokenizer/parser
     {{/block}}
 
   ';
-  #$b = $m->tokenize(['{{',' ','}}'], $a);
-  #$c = $m->parse($a, $b);
-  #$d = $m->compose(['{{',' ','}}'], $c, 0);
+  $a = '{{#if}}yep{{|1}}wtf{{|}}nope{{/if}}';
+  /***
+  echo "========\nTOKENS:\n";
+  $b = $m->tokenize($m->delims, $a);
+  var_dump($b);
+  echo "========\nTREE:\n";
+  $c = $m->parse($a, $b);
+  var_dump($c);
+  echo "========\n";
+  $d = $m->compose($m->delims, $c, 0);
+  var_dump($d);
+  echo "========\n";
+  /***/
+  /***/
   $b = [
-    'name'=>'David',
-    'block'=>0,
+    'if' => 1,
+    'name' => 'David',
   ];
+  echo "========\n";
   $c = $m->render($a, $b);
+  echo "========\n";
   var_export($a);
   var_export($b);
   var_export($c);
   exit;
-  if ($b && 0)
-  {
-    echo "========\n";
-    foreach($b as $c) {
-      $d = $c[0] ?: 'T';
-      echo "$d:{$c[2]}:{$c[3]}=".var_export($c[1], true)."\n";
-    }
-    echo "========\n";
-  }
-  exit;
-}
-if (0) # renderer
-{
-  $m = \SM\Mustache::construct([
-    'logger' => Closure::fromCallable('logit'),
-  ]);
-  $a = '
-
-    {\\$x} \\ {${x}}
-    \\\\$$
-
-    {{^block}}{{#puke}}
-      is truthy\n\n\n\n
-    {{|}}
-TEMPLATE
-;
-TEMPLATE               ;
-      is falsy
-    {{/puke}}{{/block}}
-
-  ';
-  echo "========\n$a";
-  $a = $m->render($a, [
-    'block' => 0,
-    'puke'  => 1,
-  ]);
-  echo "========\n$a";
-  #var_export($a);
-  /***
-  foreach($a as $b) {
-    $c = $b[0] ?: 'T';
-    echo "$c:{$b[2]}:{$b[3]}=".var_export($b[1], true)."\n";
-  }
   /***/
-  echo "========\n";
   exit;
 }
 # }}}
@@ -179,7 +148,7 @@ else
   }
 }
 # }}}
-# util {{{
+# logger {{{
 function logit($m, $level=-1)
 {
   static $e = null;
