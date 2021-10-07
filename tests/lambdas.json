@@ -1,5 +1,6 @@
 {
   "overview": "Lambdas are a special-cased data type for use in interpolations and\nsections.\n\nWhen used as the data value for an Interpolation tag, the lambda MUST be\ntreatable as an arity 0 function, and invoked as such.  The returned value\nMUST be rendered against the default delimiters, then interpolated in place\nof the lambda.\n\nWhen used as the data value for a Section tag, the lambda MUST be treatable\nas an arity 1 function, and invoked as such (passing a String containing the\nunprocessed section contents).  The returned value MUST be rendered against\nthe current delimiters, then interpolated in place of the section.\n",
+  "speed": 0,
   "tests": [
     {
       "name": "Interpolation",

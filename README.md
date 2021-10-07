@@ -43,57 +43,75 @@ the last one is [doubtful](https://github.com/mustache/spec/issues/128).
 - no `{{{trippleStashes}}}`, this may be set with `&` variable tag.
 - template recursions are disabled by default.
 </details>
-<details>
-<summary>if-else</summary>
 
-Else sections `|` may be used inside both if `#` and if not `^` blocks:
+<details>
+<summary>if</summary>
+
+if block is rendered when block value is truthy
 ```
-{{#block}} yes {{|}} no {{/block}}
-{{^block}} no {{|}} yes {{/block}}
-```
-block resolves `falsy`:
-```
- no 
- no 
-```
-block resolves `truthy`:
-```
- yes 
- yes 
+{{#block}} truthy {{/block}}
 ```
 </details>
 <details>
-<summary>if-switch</summary>
+<summary>if-not</summary>
 
-ta ta ta
+if-not block is rendered when block value is falsy
+```
+{{^block}} falsy {{/block}}
+```
+</details>
+<details>
+<summary>if-else</summary>
+
+if-else block has two sections, one is always rendered
+```
+{{#block}} truthy {{|}} falsy {{/block}}
+```
+</details>
+<details>
+<summary>if-not-else</summary>
+
+if-not-else block has two sections, one is always rendered
+```
+{{^block}} falsy {{|}} truthy {{/block}}
+```
+</details>
+<details>
+<summary>switch</summary>
+
+switch block is similar to if/if-else block.
+only one section may be rendered.
 ```
   {{#block}}
-    truthy section
+    truthy section (default)
   {{|0}}
     zero (string)
   {{|1}}
-    one
+    one (string/number)
   {{|2}}
-    two
+    two (string/number)
   {{|}}
     falsy section
   {{/block}}
 ```
 </details>
 <details>
-<summary>if-not-switch</summary>
+<summary>switch-not</summary>
 
-ta ta ta
+switch-not block is similar to if-not block.
+only one section may be rendered.
+it is more natural than switch block because default section is not the first one.
 ```
   {{^block}}
+    falsy section
   {{|0}}
-    zero
+    zero (string)
   {{|1}}
-    one
+    one (string/number)
   {{|2}}
-    two
+    two (string/number)
   {{|}}
-    something: {{block}}
+    truthy section (default)
   {{/block}}
 ```
 </details>

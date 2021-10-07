@@ -161,8 +161,7 @@ TEMPLATE;
     if ($tree === null)
     {
       $tree = &$this->tokenize($delims, $text);
-      $tree = &$this->parse($text, $tree);
-      if ($tree === null) {
+      if (($tree = &$this->parse($text, $tree)) === null) {
         return -1;
       }
     }
@@ -419,8 +418,9 @@ TEMPLATE;
     array   &$tokens,
     int     &$i = 0,
     ?array  &$p = null
-  ):array
+  ):?array
   {
+    static $NULL = null;
     # node:[<0:type>,<1:name>,<2:line>,<3:indent>,<4:size>,<5:[sect]>]
     # sect:[<0:condition>,<1:text>,<2:tree>,..]
     # prepare
@@ -444,7 +444,7 @@ TEMPLATE;
         # block
         $t[5] = [];
         if (!$this->parse($text, $tokens, $i, $t)) {
-          return null;# something went wrong
+          return $NULL;# something went wrong
         }
         elseif ($t[4]) {# non-empty
           $tree[$size++] = &$t;
@@ -455,7 +455,7 @@ TEMPLATE;
         if ($p === null)
         {
           $this->log('unexpected: |'.$t[1].' at line '.$t[2], 1);
-          return null;
+          return $NULL;
         }
         $p[5][] = substr($text, $from, $t[4] - $from);
         $p[5][] = $tree;
@@ -471,7 +471,7 @@ TEMPLATE;
         if ($p === null || $t[1] !== $p[1])
         {
           $this->log('unexpected: /'.$t[1].' at line '.$t[2], 1);
-          return null;
+          return $NULL;
         }
         if ($size)
         {
@@ -493,7 +493,7 @@ TEMPLATE;
     if ($p !== null)
     {
       $this->log('missing close: '.$p[1].' at line '.$p[2], 1);
-      return null;
+      return $NULL;
     }
     return $tree;
   }
@@ -547,7 +547,7 @@ class MustacheContext # {{{
   static function construct(object $engine, object $delims, array|string &$context): self
   {
     $stack = [null,null];
-    if ($engine->helpers && $delims === $engine->delims) {
+    if ($engine->helpers) {
       $stack[0] = &$engine->helpers;
     }
     if ($context) {
@@ -669,26 +669,50 @@ class MustacheContext # {{{
             : '';
         }
       }
-      # fallthrough..
+      # continue..
     }
-    elseif ($k === 2 && !$sect[0]) {
-      return '';# single sectioned, inverted block
+    # value is truthy,
+    # determine section to render
+    if ($k === 2)
+    {
+      # single section, must be truthy
+      if ($sect[0] === 0) {
+        return '';# falsy section, not rendered
+      }
+      $i = $sect[1];
     }
+    elseif ($k === 4 && is_int($sect[2]))
+    {
+      # select truthy section
+      $i = ($sect[0] === 1) ? $sect[1] : $sect[3];
+    }
+    else
+    {
+      # search for switch section
+      for ($x = "$v", $i = 2; $i < $k; $i += 2) {
+        if ($sect[$i] === $x) {break;}
+      }
+      # check not found
+      if ($i === $k)
+      {
+        # search for truthy/default section
+        for ($i = 0; $i < $k; $i += 2) {
+          if ($sect[$i] === 1) {break;}
+        }
+        # check not found
+        if ($i === $k) {
+          return '';
+        }
+      }
+      $i = $sect[$i + 1];
+    }
+    $sect = $e->func[$i];
     # check value is iterable
     # - array must have numeric keys (assumed all or none)
     # - object must be traversable
     if ((($x = is_array($v)) && is_int(key($v))) ||
         (!$x && is_object($v) && ($v instanceof \Traversable)))
     {
-      # get truthy section
-      for ($i = 0; $i < $k; $i += 2)
-      {
-        if ($sect[$i] === 1)
-        {
-          $sect = $e->func[$sect[$i + 1]];
-          break;
-        }
-      }
       # iterate, render and accumulate result
       $x = '';
       foreach ($v as &$i)
@@ -697,28 +721,16 @@ class MustacheContext # {{{
         $x .= $sect($this);
         $this->last--;
       }
+      unset($i);
     }
     else
     {
-      # expand context
+      # expand, render and collapse context
       $this->stack[++$this->last] = &$v;
-      # render
-      for ($x = '', $i = 0; $i < $k; $i += 2)
-      {
-        if ($sect[$i] === 0) {# skip falsy
-        }
-        elseif ($sect[$i] === 1) {# truthy section
-          $x .= $e->func[$sect[$i + 1]]($this);
-        }
-        elseif ($sect[$i] === "$v") {# switch section
-          $x .= $e->func[$sect[$i + 1]]($this);
-        }
-      }
-      # collapse context
+      $x = $sect($this);
       $this->last--;
     }
-    # cleanup and complete
-    unset($v, $i);
+    # complete
     return $x;
     # }}}
   }

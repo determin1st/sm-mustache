@@ -57,7 +57,8 @@
     for (let k in json)
     {
       let j = json[k];
-      if (k === 'lambdas') {// these are not supported in others
+      // skip certain test sets
+      if (j.hasOwnProperty('speed') && !j.speed) {
         continue;
       }
       //logit("> testing: "+str_fg_color(k, 'cyan', 1)+"\n");

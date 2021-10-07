@@ -85,7 +85,8 @@ while ($count--)
   ###
   foreach ($json as $k => $j)
   {
-    if ($k === 'lambdas') {# these are not supported in others
+    # skip certain test sets
+    if (isset($j['speed']) && !$j['speed']) {
       continue;
     }
     #logit("> testing: ".str_fg_color($k, 'cyan', 1)."\n");

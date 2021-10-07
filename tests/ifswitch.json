@@ -1,9 +1,10 @@
 {
   "overview": "If-Switch-Else are section tags extended\n",
+  "speed": 0,
   "tests": [
     {
-      "name": "if",
-      "desc": "Truthy section - if content rendered",
+      "name": "if-else (1)",
+      "desc": "truthy section",
       "data": {
         "if": true
       },
@@ -11,8 +12,8 @@
       "expected": "true"
     },
     {
-      "name": "if-else",
-      "desc": "Falsy section - else content rendered",
+      "name": "if-else (2)",
+      "desc": "falsy section",
       "data": {
         "if": false
       },
@@ -20,22 +21,31 @@
       "expected": "false"
     },
     {
-      "name": "if-switch",
-      "desc": "Truthy section - switch content rendered",
+      "name": "switch",
+      "desc": "switch section rendered",
       "data": {
         "if": 1
       },
-      "template": "{{#if}}x={{|1}}1{{|}}x=0{{/if}}",
+      "template": "{{#if}}x=?{{|1}}x=1{{|}}falsy{{/if}}",
       "expected": "x=1"
     },
     {
-      "name": "if-not-switch",
-      "desc": "Falsy section - switch content rendered",
+      "name": "switch-not (1)",
+      "desc": "switch section rendered",
       "data": {
         "if": 1
       },
-      "template": "{{^if}}{{|1}}one{{|}}default{{/if}}",
-      "expected": "onedefault"
+      "template": "{{^if}}falsy{{|1}}x=1{{|}}x=?{{/if}}",
+      "expected": "x=1"
+    },
+    {
+      "name": "switch-not (2)",
+      "desc": "nothing is rendered (no default section)",
+      "data": {
+        "if": 2
+      },
+      "template": "{{^if}}falsy{{|1}}x=1{{/if}}",
+      "expected": ""
     }
   ]
 }
