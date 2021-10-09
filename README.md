@@ -11,7 +11,7 @@
 test loops over mustache spec files (except lambdas), fails are skipped and counted.
 [mustache.js](https://github.com/janl/mustache.js) fails in one test: [issue](https://github.com/janl/mustache.js/issues/65)
 [![vs](https://raw.githack.com/determin1st/sm-mustache/master/tests/speed.jpg)](https://github.com/determin1st/sm-mustache#tests)
-:point_up: PHPv8.0.7 +JIT, NODEv10.14.2
+:point_up: PHPv8.0.7 +JIT, NODEv16.5.0
 ---
 </details>
 <details>
