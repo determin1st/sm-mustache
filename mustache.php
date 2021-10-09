@@ -65,10 +65,10 @@ TEMPLATE;
     public $recur
   )
   {
-    $this->cache = new \SplFixedArray(65536);# root (~4mb)
-    $this->hash  = new \SplFixedArray(self::CACHE_MAX);
-    $this->text  = new \SplFixedArray(self::CACHE_MAX);
-    $this->func  = new \SplFixedArray(self::CACHE_MAX);
+    $this->cache = array_fill(0, 65536, null);# root (~4mb)
+    $this->hash  = [null];
+    $this->text  = [null];
+    $this->func  = [null];
   }
   # }}}
   static function parseDelims(string $text): ?object # {{{
@@ -197,7 +197,7 @@ TEMPLATE;
   function cacheSet(string $k, int $ki): bool # {{{
   {
     # determine root index
-    $z = $this->cache;
+    $z = &$this->cache;
     $y = (ord($k[1]) << 8) + ord($k[0]);
     $x = $z[$y];
     # lookup
@@ -225,7 +225,7 @@ TEMPLATE;
         $z[$y] = $b;
       }
       # traverse to the next bucket
-      $z = $z[$y];
+      $z = &$z[$y];
       $y = ord($k[$i]);
       $x = $z[$y];
     }
