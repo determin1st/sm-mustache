@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace SM;
 use function # {{{
-  is_callable,is_object,is_array,is_int,is_string,is_numeric,
+  is_callable,is_scalar,is_object,is_array,is_int,is_string,is_numeric,
   method_exists,array_key_exists,ctype_alnum,ctype_space,
   preg_quote,preg_match,str_replace,trim,ltrim,strlen,strpos,substr,
   hash,sprintf,ord,htmlspecialchars,call_user_func,
@@ -290,7 +290,7 @@ TEMPLATE;
       $b += $size0;# shift to the tag name
       if (($a = strpos($text, $delims[1], $b)) === false ||
           !($c = trim(substr($text, $b, $a - $b), ' ')) ||
-          (!ctype_alnum($c[0]) && strpos('#^|/.&!', $c[0]) === false) ||
+          (!ctype_alnum($c[0]) && strpos('#^?|/.&!', $c[0]) === false) ||
           (strlen($c) > self::NAME_SIZE && $c[0] !== '!'))
       {
         # report as problematic but acceptable (not an error)
@@ -314,15 +314,16 @@ TEMPLATE;
       switch ($c[0]) {
       case '#':
       case '^':
-        # if / if not block
+      case '?':
+        # block start
         $tokens[$i++] = [$c[0],ltrim(substr($c, 1), ' '),$line,$indent,$i1];
         break;
       case '|':
-        # else block
+        # inner block
         $tokens[$i++] = ['|',ltrim(substr($c, 1), ' '),$line,$indent,$i0,$i1];
         break;
       case '/':
-        # end of the block
+        # block end
         $tokens[$i++] = ['/',ltrim(substr($c, 1), ' '),$line,$indent,$i0];
         break;
       case '!':
@@ -427,7 +428,7 @@ TEMPLATE;
     if ($p)
     {
       # first section's condition is the block condition
-      $p[5][] = ($p[0] === '#') ? 1 : 0;
+      $p[5][] = ($p[0] === '^') ? 0 : 1;
       $from = $p[4];
     }
     else {
@@ -441,6 +442,7 @@ TEMPLATE;
       switch ($t[0]) {
       case '#':
       case '^':
+      case '?':
         # block
         $t[5] = [];
         if (!$this->parse($text, $tokens, $i, $t)) {
@@ -525,19 +527,20 @@ TEMPLATE;
         break;
       case '#':
       case '^':
-        # if / if-not / else / switch
+      case '?':
+        # block
         for ($x = '', $i = 0; $i < $t[4]; $i += 3)
         {
           $x .= ','.$t[5][$i].
                 ','.$this->renderFunc($delims, $t[5][$i + 1], $t[5][$i + 2], $depth);
         }
-        $code .= '{$x->f(\''.$t[1]."'".$x.')}';
+        $code .= '{$x->f(\''.$t[0].$t[1]."'".$x.')}';
         break;
       }
     }
     # apply heredoc terminator guard and complete
-    return (strpos($code, $x = "\nTEMPLATE") !== false)
-      ? str_replace($x, '{$x}', $code)
+    return (strpos($code, MustacheContext::GUARD) !== false)
+      ? str_replace(MustacheContext::GUARD, '{$x}', $code)
       : $code;
   }
   # }}}
@@ -561,8 +564,9 @@ class MustacheContext # {{{
     public array  $stack,
     public int    $last = 1
   ) {}
+  const GUARD = "\nTEMPLATE";
   function __toString() {
-    return "\nTEMPLATE";# terminator guard
+    return self::GUARD;
   }
   function __invoke(string $name): string
   {
@@ -606,13 +610,14 @@ class MustacheContext # {{{
     return '';
     # }}}
   }
-  #function f(string $name, int $inverted, int ...$i): string
   function f(string $name, int|string ...$sect): string
   {
     # block {{{
     # prepare
     $e = $this->engine;
     $k = count($sect);
+    $type = $name[0];
+    $name = substr($name, 1);
     # resolve value
     $v = ($name === '.')
       ? $this->stack[$this->last]# implicit iterator
@@ -686,7 +691,7 @@ class MustacheContext # {{{
       # select truthy section
       $i = ($sect[0] === 1) ? $sect[1] : $sect[3];
     }
-    else
+    elseif (is_scalar($v))
     {
       # search for switch section
       for ($x = "$v", $i = 2; $i < $k; $i += 2) {
@@ -706,7 +711,24 @@ class MustacheContext # {{{
       }
       $i = $sect[$i + 1];
     }
+    else
+    {
+      # non-scalar, truthy value
+      # search for truthy/default section
+      for ($i = 0; $i < $k; $i += 2) {
+        if ($sect[$i] === 1) {break;}
+      }
+      # check not found
+      if ($i === $k) {
+        return '';
+      }
+      $i = $sect[$i + 1];
+    }
     $sect = $e->func[$i];
+    # check block doesn't need value
+    if ($type === '?') {
+      return $sect($this);
+    }
     # check value is iterable
     # - array must have numeric keys (assumed all or none)
     # - object must be traversable

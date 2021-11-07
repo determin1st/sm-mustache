@@ -46,6 +46,15 @@
       },
       "template": "{{^if}}falsy{{|1}}x=1{{/if}}",
       "expected": ""
+    },
+    {
+      "name": "if-only (truthy)",
+      "desc": "value is not iterated",
+      "data": {
+        "if": [1,2,3,4,5]
+      },
+      "template": "{{?if}}true{{#if}}{{.}}{{/if}}{{|1}}1{{|}}false{{/if}}",
+      "expected": "true12345"
     }
   ]
 }
