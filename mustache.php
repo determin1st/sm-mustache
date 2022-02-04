@@ -1,21 +1,341 @@
-<?php
-declare(strict_types=1);
+<?php declare(strict_types=1);
 namespace SM;
 use function # {{{
   is_callable,is_scalar,is_object,is_array,is_int,is_string,is_numeric,
-  method_exists,array_key_exists,ctype_alnum,ctype_space,
-  preg_quote,preg_match,str_replace,trim,ltrim,strlen,strpos,substr,
-  hash,sprintf,ord,htmlspecialchars,call_user_func,
-  key,count,explode,array_shift,array_pop;
+  hash,method_exists,call_user_func,preg_quote,preg_match,
+  str_replace,trim,ltrim,strlen,strpos,substr,
+  sprintf,ord,htmlspecialchars,ctype_alnum,ctype_space,
+  array_fill,array_key_exists,key,count,explode,array_shift,array_pop;
+# }}}
+class MustacheContext # {{{
+{
+  static function construct(object $engine, object $delims, array|string &$context): self
+  {
+    $stack = [null,null];
+    if ($engine->helpers) {
+      $stack[0] = &$engine->helpers;
+    }
+    if ($context) {
+      $stack[1] = &$context;
+    }
+    return new self($engine, $delims, $stack);
+  }
+  function __construct(
+    public object $engine,
+    public object $delims,
+    public array  $stack,
+    public int    $last = 1
+  ) {}
+  const GUARD = "\nTEMPLATE";
+  function __toString() {
+    return self::GUARD;
+  }
+  function __invoke(string $name): string
+  {
+    # variable {{{
+    # strip name tag
+    ($tag = ($name[0] === '&')) && ($name = substr($name, 1));
+    # resolve value
+    $v = ($name === '.')
+      ? $this->stack[$this->last]# implicit iterator
+      : $this->v($name);# named
+    # handle falsy
+    if (!$v) {
+      return $v === 0 ? '0' : '';
+    }
+    # handle function
+    if ($isFunc = is_callable($v)) {
+      $v = ($v instanceof \Closure) ? $v('') : call_user_func($v, '');
+    }
+    # check proper type
+    if (is_string($v))
+    {
+      # check template recursion
+      if ($isFunc && $this->engine->recur &&
+          strpos($v, $this->delims[0]) !== false &&
+          strpos($v, $this->delims[1]) !== false)
+      {
+        # recurse
+        $i = $this->engine->renderFunc($this->delims, $v);
+        $v = ~$i ? $this->engine->func[$i]($this) : '';
+      }
+      elseif (!$tag && ($f = $this->engine->escaper))
+      {
+        # escape characters
+        $v = ($f === true) ? htmlspecialchars($v) : $f($v);
+      }
+      return $v;
+    }
+    elseif (is_numeric($v)) {
+      return "$v";
+    }
+    return '';
+    # }}}
+  }
+  function f(string $name, int|string ...$sect): string
+  {
+    # block {{{
+    # prepare
+    $e = $this->engine;
+    $k = count($sect);
+    $type = $name[0];
+    $name = substr($name, 1);
+    # resolve value
+    $v = ($name === '.')
+      ? $this->stack[$this->last]# implicit iterator
+      : $this->v($name);# named
+    # handle falsy ('',[],0,false,null)
+    if (!$v && $v !== '0')
+    {
+      for ($i = 0; $i < $k; $i += 2)
+      {
+        if ($sect[$i] === 0) {
+          return $e->func[$sect[$i + 1]]($this);
+        }
+      }
+      return '';
+    }
+    # handle lambda block
+    if (is_callable($v))
+    {
+      # invoke handler
+      $v = ($k === 2)
+        ? call_user_func($v, $e->text[$sect[1]])
+        : call_user_func($v);
+      # handle falsy result
+      if (!$v && $v !== '0')
+      {
+        for ($i = 0; $i < $k; $i += 2)
+        {
+          if ($sect[$i] === 0) {
+            return $e->func[$sect[$i + 1]]($this);
+          }
+        }
+        return '';
+      }
+      # handle single sectioned block
+      if ($k === 2)
+      {
+        # handle inverted block
+        if (!$sect[0]) {
+          return '';
+        }
+        # handle block content substitution
+        if (is_string($v))
+        {
+          # check recursion enabled and feasible
+          if (!$e->recur ||
+              strpos($v, $this->delims[0]) === false ||
+              strpos($v, $this->delims[1]) === false)
+          {
+            return $v;
+          }
+          # recurse
+          return ~($i = $e->renderFunc($this->delims, $v))
+            ? $e->func[$i]($this)
+            : '';
+        }
+      }
+      # continue..
+    }
+    # value is truthy,
+    # determine section to render
+    if ($k === 2)
+    {
+      # single section, must be truthy
+      if ($sect[0] === 0) {
+        return '';# falsy section, not rendered
+      }
+      $i = $sect[1];
+    }
+    elseif ($k === 4 && is_int($sect[2]))
+    {
+      # select truthy section
+      $i = ($sect[0] === 1) ? $sect[1] : $sect[3];
+    }
+    elseif (is_scalar($v))
+    {
+      # search for switch section
+      for ($x = "$v", $i = 2; $i < $k; $i += 2) {
+        if ($sect[$i] === $x) {break;}
+      }
+      # check not found
+      if ($i === $k)
+      {
+        # search for truthy/default section
+        for ($i = 0; $i < $k; $i += 2) {
+          if ($sect[$i] === 1) {break;}
+        }
+        # check not found
+        if ($i === $k) {
+          return '';
+        }
+      }
+      $i = $sect[$i + 1];
+    }
+    else
+    {
+      # non-scalar, truthy value
+      # search for truthy/default section
+      for ($i = 0; $i < $k; $i += 2) {
+        if ($sect[$i] === 1) {break;}
+      }
+      # check not found
+      if ($i === $k) {
+        return '';
+      }
+      $i = $sect[$i + 1];
+    }
+    $sect = $e->func[$i];
+    # check block doesn't need value
+    if ($type === '?') {
+      return $sect($this);
+    }
+    # check value is iterable
+    # - array must have numeric keys (assumed all or none)
+    # - object must be traversable
+    if ((($x = is_array($v)) && is_int(key($v))) ||
+        (!$x && is_object($v) && ($v instanceof \Traversable)))
+    {
+      # iterate, render and accumulate result
+      $x = '';
+      foreach ($v as &$i)
+      {
+        $this->stack[++$this->last] = &$i;
+        $x .= $sect($this);
+        $this->last--;
+      }
+      unset($i);
+    }
+    else
+    {
+      # expand, render and collapse context
+      $this->stack[++$this->last] = &$v;
+      $x = $sect($this);
+      $this->last--;
+    }
+    # complete
+    return $x;
+    # }}}
+  }
+  function v(string $name)
+  {
+    # name resolution {{{
+    # prepare
+    if (strpos($name, '.') === false) {
+      $dots = null;
+    }
+    else
+    {
+      $dots = explode('.', $name);
+      $name = array_shift($dots);
+    }
+    # resolve the first name
+    # iterate stack backwards
+    for ($v = '', $i = $this->last; $i >= 0; --$i)
+    {
+      # checkout truthy frame
+      if ($x = &$this->stack[$i])
+      {
+        # check array or object
+        if (is_array($x))
+        {
+          # check property
+          if (array_key_exists($name, $x))
+          {
+            $v = &$x[$name];
+            break;
+          }
+        }
+        elseif (is_object($x))
+        {
+          # check property
+          if (isset($x->$name))
+          {
+            $v = &$x->$name;
+            break;
+          }
+          # check method
+          if (method_exists($x, $name))
+          {
+            # wrap the last name's function and complete
+            if (!$dots) {
+              return \Closure::fromCallable([$x, $name]);
+            }
+            # otherwise, use the call result for the further traversal
+            $v = &$x->$name();
+            break;
+          }
+        }
+      }
+    }
+    # check non-resolved or nothing more to resolve
+    if (!$v || !$dots) {
+      return $v;
+    }
+    # resolve dot notation
+    # traverse the value (til the last name)
+    $name = array_pop($dots);
+    foreach ($dots as $i)
+    {
+      if (is_array($v))
+      {
+        # property must be set (may be callbable)
+        if (isset($v[$i]))
+        {
+          if (is_callable($v[$i])) {
+            $v = &$v[$i]();
+          }
+          else {
+            $v = &$v[$i];
+          }
+          continue;
+        }
+      }
+      elseif (is_object($v))
+      {
+        # property must be set, method must be called otherwise
+        if (isset($v->$name))
+        {
+          $v = &$v->$name;
+          continue;
+        }
+        elseif (method_exists($name, $v))
+        {
+          $v = &$v->$name();
+          continue;
+        }
+      }
+      return '';# traverse failed
+    }
+    # resolve the last name (array property/function or object property/method)
+    if (is_array($v)) {
+      return isset($v[$name]) ? $v[$name] : '';
+    }
+    if (is_object($v))
+    {
+      if (isset($v->$name)) {
+        return $v->$name;
+      }
+      if (method_exists($name, $v)) {
+        return \Closure::fromCallable([$v, $name]);
+      }
+    }
+    return '';
+    # }}}
+  }
+}
 # }}}
 class Mustache {
   # {{{
-  const SPEC      = '1.1.2';
-  const NAME_SIZE = 32;# max {{name}} size (without delimiters/spacing)
-  const CACHE_MAX = 1000;# max number of cached templates
-  const DELIMS    = '{}[]()<>:%=~-_?*@!|';# valid delimiter chars
-  static $DELIMS_EXP = '/^([_]{2,4})(\s+)([_]{2,4})$/';
-  static $TEMPLATE = '
+  const
+    SPEC      = '1.1.2',
+    NAME_SIZE = 32,# max {{name}} size (without delimiters/spacing)
+    CACHE_MAX = 1000,# max number of cached templates
+    DELIMS    = '{}[]()<>:%=~-_?*@!|';# valid delimiter chars
+  static
+    $DELIMS_EXP = '/^([_]{2,4})(\s+)([_]{2,4})$/',
+    $TEMPLATE   = '
 
 function(object $x):string { #%s,depth=%s
 return <<<TEMPLATE
@@ -23,53 +343,10 @@ return <<<TEMPLATE
 TEMPLATE;
 }
 
-  ';
-  # }}}
-  static function construct(array $o = []): ?self # {{{
-  {
-    # initialize static once
-    if (self::$TEMPLATE[0] !== 'f')
-    {
-      self::$DELIMS_EXP = str_replace('_', preg_quote(self::DELIMS), self::$DELIMS_EXP);
-      self::$TEMPLATE = str_replace("\r", "", trim(self::$TEMPLATE));
-    }
-    # parse options
-    $a = isset($o[$k = 'logger'])
-      ? $o[$k]
-      : null;
-    $b = isset($o[$k = 'delims'])
-      ? $o[$k]
-      : '{{ }}';
-    $c = isset($o[$k = 'escaper'])
-      ? (is_callable($o[$k]) ? $o[$k] : !!$o[$k])
-      : false;
-    # parse delimiters
-    if (!($b = self::parseDelims($b)))
-    {
-      is_callable($a) && $a('incorrect delimiters', 1);
-      return null;
-    }
-    # construct
-    return new self(
-      $a,$b,$c,
-      (isset($o[$k = 'helpers']) ? $o[$k] : null),
-      (isset($o[$k = 'recur']) ? $o[$k] : false)
-    );
-  }
-  public $cache,$hash,$text,$func,$total = 0;
-  function __construct(
-    public $logger,
-    public $delims,
-    public $escaper,
-    public $helpers,
-    public $recur
-  )
-  {
-    $this->cache = array_fill(0, 65536, null);# root (~4mb)
-    $this->hash  = [null];
-    $this->text  = [null];
-    $this->func  = [null];
-  }
+    ';
+  public
+    $logger,$delims,$helpers,$escaper,$recur,
+    $cache,$hash,$text,$func,$total = 0;
   # }}}
   static function parseDelims(string $text): ?object # {{{
   {
@@ -77,6 +354,43 @@ TEMPLATE;
       ? \SplFixedArray::fromArray([$x[1],$x[3]])
       : null;
   }
+  # }}}
+  static function construct(array $o = []): ?self # {{{
+  {
+    # initialize statics once
+    if (self::$TEMPLATE[0] !== 'f')
+    {
+      self::$DELIMS_EXP = str_replace('_', preg_quote(self::DELIMS), self::$DELIMS_EXP);
+      self::$TEMPLATE = str_replace("\r", "", trim(self::$TEMPLATE));
+    }
+    # create and initialize instance
+    $I = new self();
+    if (isset($o[$k = 'logger']) && is_callable($o[$k])) {
+      $I->logger = $o[$k];
+    }
+    if (!($I->delims = self::parseDelims($o['delims'] ?? '{{ }}')))
+    {
+      $I->log('incorrect delimiters', 1);
+      return null;
+    }
+    if (isset($o[$k = 'helpers'])) {
+      $I->helpers = &$o[$k];
+    }
+    $I->escaper = isset($o[$k = 'escaper'])
+      ? (is_callable($o[$k]) ? $o[$k] : !!$o[$k])
+      : false;
+    $I->recur = isset($o[$k = 'recur'])
+      ? $o[$k]
+      : false;
+    $I->cache = array_fill(0, 65536, null);# root (~4mb)
+    $I->hash  = [null];
+    $I->text  = [null];
+    $I->func  = [null];
+    return $I;
+  }
+  # }}}
+  private function __construct() # {{{
+  {}
   # }}}
   function log(string $text, int $level = 0): void # {{{
   {
@@ -545,323 +859,4 @@ TEMPLATE;
   }
   # }}}
 }
-class MustacheContext # {{{
-{
-  static function construct(object $engine, object $delims, array|string &$context): self
-  {
-    $stack = [null,null];
-    if ($engine->helpers) {
-      $stack[0] = &$engine->helpers;
-    }
-    if ($context) {
-      $stack[1] = &$context;
-    }
-    return new self($engine, $delims, $stack);
-  }
-  function __construct(
-    public object $engine,
-    public object $delims,
-    public array  $stack,
-    public int    $last = 1
-  ) {}
-  const GUARD = "\nTEMPLATE";
-  function __toString() {
-    return self::GUARD;
-  }
-  function __invoke(string $name): string
-  {
-    # variable {{{
-    # strip name tag
-    ($tag = ($name[0] === '&')) && ($name = substr($name, 1));
-    # resolve value
-    $v = ($name === '.')
-      ? $this->stack[$this->last]# implicit iterator
-      : $this->v($name);# named
-    # handle falsy
-    if (!$v) {
-      return $v === 0 ? '0' : '';
-    }
-    # handle function
-    if ($isFunc = is_callable($v)) {
-      $v = ($v instanceof \Closure) ? $v('') : call_user_func($v, '');
-    }
-    # check proper type
-    if (is_string($v))
-    {
-      # check template recursion
-      if ($isFunc && $this->engine->recur &&
-          strpos($v, $this->delims[0]) !== false &&
-          strpos($v, $this->delims[1]) !== false)
-      {
-        # recurse
-        $i = $this->engine->renderFunc($this->delims, $v);
-        $v = ~$i ? $this->engine->func[$i]($this) : '';
-      }
-      elseif (!$tag && ($f = $this->engine->escaper))
-      {
-        # escape characters
-        $v = ($f === true) ? htmlspecialchars($v) : $f($v);
-      }
-      return $v;
-    }
-    elseif (is_numeric($v)) {
-      return "$v";
-    }
-    return '';
-    # }}}
-  }
-  function f(string $name, int|string ...$sect): string
-  {
-    # block {{{
-    # prepare
-    $e = $this->engine;
-    $k = count($sect);
-    $type = $name[0];
-    $name = substr($name, 1);
-    # resolve value
-    $v = ($name === '.')
-      ? $this->stack[$this->last]# implicit iterator
-      : $this->v($name);# named
-    # handle falsy ('',[],0,false,null)
-    if (!$v && $v !== '0')
-    {
-      for ($i = 0; $i < $k; $i += 2)
-      {
-        if ($sect[$i] === 0) {
-          return $e->func[$sect[$i + 1]]($this);
-        }
-      }
-      return '';
-    }
-    # handle lambda block
-    if (is_callable($v))
-    {
-      # invoke handler
-      $v = ($k === 2)
-        ? call_user_func($v, $e->text[$sect[1]])
-        : call_user_func($v);
-      # handle falsy result
-      if (!$v && $v !== '0')
-      {
-        for ($i = 0; $i < $k; $i += 2)
-        {
-          if ($sect[$i] === 0) {
-            return $e->func[$sect[$i + 1]]($this);
-          }
-        }
-        return '';
-      }
-      # handle single sectioned block
-      if ($k === 2)
-      {
-        # handle inverted block
-        if (!$sect[0]) {
-          return '';
-        }
-        # handle block content substitution
-        if (is_string($v))
-        {
-          # check recursion enabled and feasible
-          if (!$e->recur ||
-              strpos($v, $this->delims[0]) === false ||
-              strpos($v, $this->delims[1]) === false)
-          {
-            return $v;
-          }
-          # recurse
-          return ~($i = $e->renderFunc($this->delims, $v))
-            ? $e->func[$i]($this)
-            : '';
-        }
-      }
-      # continue..
-    }
-    # value is truthy,
-    # determine section to render
-    if ($k === 2)
-    {
-      # single section, must be truthy
-      if ($sect[0] === 0) {
-        return '';# falsy section, not rendered
-      }
-      $i = $sect[1];
-    }
-    elseif ($k === 4 && is_int($sect[2]))
-    {
-      # select truthy section
-      $i = ($sect[0] === 1) ? $sect[1] : $sect[3];
-    }
-    elseif (is_scalar($v))
-    {
-      # search for switch section
-      for ($x = "$v", $i = 2; $i < $k; $i += 2) {
-        if ($sect[$i] === $x) {break;}
-      }
-      # check not found
-      if ($i === $k)
-      {
-        # search for truthy/default section
-        for ($i = 0; $i < $k; $i += 2) {
-          if ($sect[$i] === 1) {break;}
-        }
-        # check not found
-        if ($i === $k) {
-          return '';
-        }
-      }
-      $i = $sect[$i + 1];
-    }
-    else
-    {
-      # non-scalar, truthy value
-      # search for truthy/default section
-      for ($i = 0; $i < $k; $i += 2) {
-        if ($sect[$i] === 1) {break;}
-      }
-      # check not found
-      if ($i === $k) {
-        return '';
-      }
-      $i = $sect[$i + 1];
-    }
-    $sect = $e->func[$i];
-    # check block doesn't need value
-    if ($type === '?') {
-      return $sect($this);
-    }
-    # check value is iterable
-    # - array must have numeric keys (assumed all or none)
-    # - object must be traversable
-    if ((($x = is_array($v)) && is_int(key($v))) ||
-        (!$x && is_object($v) && ($v instanceof \Traversable)))
-    {
-      # iterate, render and accumulate result
-      $x = '';
-      foreach ($v as &$i)
-      {
-        $this->stack[++$this->last] = &$i;
-        $x .= $sect($this);
-        $this->last--;
-      }
-      unset($i);
-    }
-    else
-    {
-      # expand, render and collapse context
-      $this->stack[++$this->last] = &$v;
-      $x = $sect($this);
-      $this->last--;
-    }
-    # complete
-    return $x;
-    # }}}
-  }
-  function v(string $name)
-  {
-    # name resolution {{{
-    # prepare
-    if (strpos($name, '.') === false) {
-      $dots = null;
-    }
-    else
-    {
-      $dots = explode('.', $name);
-      $name = array_shift($dots);
-    }
-    # resolve the first name
-    # iterate stack backwards
-    for ($v = '', $i = $this->last; $i >= 0; --$i)
-    {
-      # checkout truthy frame
-      if ($x = &$this->stack[$i])
-      {
-        # check array or object
-        if (is_array($x))
-        {
-          # check property
-          if (array_key_exists($name, $x))
-          {
-            $v = &$x[$name];
-            break;
-          }
-        }
-        elseif (is_object($x))
-        {
-          # check property
-          if (isset($x->$name))
-          {
-            $v = &$x->$name;
-            break;
-          }
-          # check method
-          if (method_exists($x, $name))
-          {
-            # wrap the last name's function and complete
-            if (!$dots) {
-              return \Closure::fromCallable([$x, $name]);
-            }
-            # otherwise, use the call result for the further traversal
-            $v = &$x->$name();
-            break;
-          }
-        }
-      }
-    }
-    # check non-resolved or nothing more to resolve
-    if (!$v || !$dots) {
-      return $v;
-    }
-    # resolve dot notation
-    # traverse the value (til the last name)
-    $name = array_pop($dots);
-    foreach ($dots as $i)
-    {
-      if (is_array($v))
-      {
-        # property must be set (may be callbable)
-        if (isset($v[$i]))
-        {
-          if (is_callable($v[$i])) {
-            $v = &$v[$i]();
-          }
-          else {
-            $v = &$v[$i];
-          }
-          continue;
-        }
-      }
-      elseif (is_object($v))
-      {
-        # property must be set, method must be called otherwise
-        if (isset($v->$name))
-        {
-          $v = &$v->$name;
-          continue;
-        }
-        elseif (method_exists($name, $v))
-        {
-          $v = &$v->$name();
-          continue;
-        }
-      }
-      return '';# traverse failed
-    }
-    # resolve the last name (array property/function or object property/method)
-    if (is_array($v)) {
-      return isset($v[$name]) ? $v[$name] : '';
-    }
-    if (is_object($v))
-    {
-      if (isset($v->$name)) {
-        return $v->$name;
-      }
-      if (method_exists($name, $v)) {
-        return \Closure::fromCallable([$v, $name]);
-      }
-    }
-    return '';
-    # }}}
-  }
-}
-# }}}
 ?>
