@@ -137,10 +137,13 @@ else
       if ($m->render($test['template'], $test['data']) === $test['expected']) {
         logit(str_fg_color('ok', 'green', 1)."\n");
       }
+      elseif (isset($test['skip']) && $test['skip']) {
+        logit(str_fg_color('skip', 'blue', 0)."\n");
+      }
       else
       {
         logit(str_fg_color('fail', 'red', 1)."\n");
-        if (!$noSkip || !isset($test['skip']) || !$test['skip']) {
+        if ($noSkip) {
           break 2;
         }
       }
@@ -151,12 +154,10 @@ else
 # logger {{{
 function logit($m, $level=-1)
 {
-  static $e = null;
-  !$e && ($e = fopen('php://stderr', 'w'));
   if (~$level) {
     $m = "sm: ".str_bg_color($m, ($level ? 'red' : 'cyan'))."\n";
   }
-  fwrite($e, $m);
+  fwrite(STDOUT, $m);
 }
 function str_bg_color($m, $name, $strong=0)
 {

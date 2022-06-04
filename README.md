@@ -133,8 +133,8 @@ require_once __DIR__.DIRECTORY_SEPARATOR.'.inc.'.DIRECTORY_SEPARATOR.'mustache.p
 $tp = \SM\Mustache::construct([
   'delims'  => '{{ }}',
   'logger'  => null,  # callable, for debug logs
-  'helpers' => null,  # context fallbacks array/object
-  'escaper' => false, # callable, variables escaper (or truthy for HTML escaping)
+  'helper'  => null,  # object/array, context fallback
+  'escaper' => false, # callable, variable escaper (or truthy for HTML escaping)
   'recur'   => false, # template recursion flag
 ]);
 
@@ -207,7 +207,7 @@ the exception is a variables chain `{{item.1.has.name}}` (called dot notation in
 
 # examples
 ## multipass
-## helpers
+## helper
 </details>
 
 
